@@ -1,4 +1,5 @@
 import { v7 as uuidv7 } from 'uuid';
+import type { QueryResultRow } from 'pg';
 
 import type { DatabasePool } from './pool.js';
 
@@ -34,5 +35,16 @@ export class AuditRepository {
         input.traceId,
       ],
     );
+  }
+
+  public async list(workspaceId: string, limit = 50): Promise<QueryResultRow[]> {
+    const result = await this.database.pool.query(
+      `SELECT id, actor_type, actor_label, action, target_type, target_id,
+              metadata, occurred_at, trace_id
+       FROM audit_events WHERE workspace_id = $1
+       ORDER BY occurred_at DESC, id DESC LIMIT $2`,
+      [workspaceId, limit],
+    );
+    return result.rows;
   }
 }

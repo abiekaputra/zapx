@@ -14,6 +14,7 @@ const databaseUrl =
 const database = new DatabasePool(databaseUrl);
 const workspaceId = uuidv7();
 const userId = uuidv7();
+const viewerId = uuidv7();
 const providerId = uuidv7();
 const templateVersionId = uuidv7();
 let application: NestFastifyApplication;
@@ -21,6 +22,7 @@ let accessToken: string;
 let browserCookies: string;
 let csrfToken: string;
 let apiKey: string;
+let apiKeyId: string;
 let notificationId: string;
 
 describe('Phase 4 API flow', () => {
@@ -65,6 +67,22 @@ describe('Phase 4 API flow', () => {
     expect(me.json()).toMatchObject({ role: 'OWNER', workspace_id: workspaceId });
   });
 
+  it('rotates the browser session and rejects the replaced access token', async () => {
+    const oldAccess = accessToken;
+    const refresh = await application.inject({
+      headers: { cookie: browserCookies },
+      method: 'POST',
+      payload: {},
+      url: '/v1/auth/refresh',
+    });
+    expect(refresh.statusCode).toBe(200);
+    accessToken = cookieValue(refresh.headers['set-cookie'], 'zapx_access');
+    csrfToken = cookieValue(refresh.headers['set-cookie'], 'zapx_csrf');
+    browserCookies = cookieHeader(refresh.headers['set-cookie']);
+    expect((await inject('GET', '/v1/auth/me', undefined, oldAccess)).statusCode).toBe(401);
+    expect((await inject('GET', '/v1/auth/me', undefined, accessToken)).statusCode).toBe(200);
+  });
+
   it('creates an API key whose secret is returned once', async () => {
     const body = {
       name: 'Integration client',
@@ -86,11 +104,74 @@ describe('Phase 4 API flow', () => {
     });
     expect(created.statusCode).toBe(201);
     apiKey = created.json().secret as string;
+    apiKeyId = created.json().id as string;
     expect(apiKey).toMatch(/^zx_key_[a-f0-9]{12}_/);
 
     const listed = await inject('GET', '/v1/api-keys', undefined, accessToken);
     expect(listed.statusCode).toBe(200);
     expect(JSON.stringify(listed.json())).not.toContain(apiKey);
+  });
+
+  it('manages encrypted providers without exposing their secret', async () => {
+    const created = await inject(
+      'POST',
+      '/v1/providers',
+      {
+        config: {
+          rate_limit_per_second: 3,
+          signing_secret: 'integration-signing-secret',
+          url: 'http://127.0.0.1:1/deliveries',
+        },
+        kind: 'WEBHOOK',
+        name: 'Unavailable receiver',
+      },
+      accessToken,
+    );
+    expect(created.statusCode).toBe(201);
+    expect(JSON.stringify(created.json())).not.toContain('integration-signing-secret');
+    const tested = await inject('POST', `/v1/providers/${created.json().id}/test`, {}, accessToken);
+    expect(tested.statusCode).toBe(201);
+    expect(tested.json()).toMatchObject({ successful: false, provider: { status: 'UNHEALTHY' } });
+  });
+
+  it('creates, previews, and publishes an immutable template version', async () => {
+    const template = await inject(
+      'POST',
+      '/v1/templates',
+      { channel: 'EMAIL', name: 'Integration receipt' },
+      accessToken,
+    );
+    const version = await inject(
+      'POST',
+      `/v1/templates/${template.json().id}/versions`,
+      {
+        body_template: 'Hello {{first_name}}',
+        required_variables: ['first_name'],
+        subject_template: 'Receipt for {{first_name}}',
+      },
+      accessToken,
+    );
+    const invalid = await inject(
+      'POST',
+      `/v1/template-versions/${version.json().id}/preview`,
+      { variables: {} },
+      accessToken,
+    );
+    expect(invalid.statusCode).toBe(422);
+    const preview = await inject(
+      'POST',
+      `/v1/template-versions/${version.json().id}/preview`,
+      { variables: { first_name: 'Naya' } },
+      accessToken,
+    );
+    expect(preview.json()).toEqual({ body: 'Hello Naya', subject: 'Receipt for Naya' });
+    const published = await inject(
+      'POST',
+      `/v1/template-versions/${version.json().id}/publish`,
+      {},
+      accessToken,
+    );
+    expect(published.json().published_at).toBeTypeOf('string');
   });
 
   it('accepts, replays, and rejects conflicting notification intake', async () => {
@@ -131,7 +212,12 @@ describe('Phase 4 API flow', () => {
        WHERE id = $1`,
       [notificationId],
     );
-    const replay = await inject('POST', `/v1/notifications/${notificationId}/replay`, {}, apiKey);
+    const replay = await inject(
+      'POST',
+      `/v1/notifications/${notificationId}/replay`,
+      {},
+      accessToken,
+    );
     expect(replay.statusCode).toBe(202);
     expect(replay.json()).toMatchObject({ id: notificationId, status: 'ACCEPTED' });
     const evidence = await database.pool.query<{ audits: string; replays: string }>(
@@ -142,6 +228,85 @@ describe('Phase 4 API flow', () => {
       [notificationId],
     );
     expect(evidence.rows[0]).toEqual({ audits: '1', replays: '1' });
+  });
+
+  it('allows a viewer to inspect while rejecting every mutation', async () => {
+    const login = await inject('POST', '/v1/auth/login', {
+      email: 'viewer@zapx.local',
+      password: 'local-zapx-viewer',
+    });
+    const viewerToken = cookieValue(login.headers['set-cookie'], 'zapx_access');
+    expect((await inject('GET', '/v1/overview', undefined, viewerToken)).statusCode).toBe(200);
+    const rejected = await inject(
+      'POST',
+      `/v1/notifications/${notificationId}/replay`,
+      {},
+      viewerToken,
+    );
+    expect(rejected.statusCode).toBe(403);
+    const replayEvents = await database.pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count FROM outbox_events
+       WHERE aggregate_id = $1 AND event_type = 'notification.replayed'`,
+      [notificationId],
+    );
+    expect(replayEvents.rows[0]!.count).toBe('1');
+  });
+
+  it('returns overview, filtered notification detail, audit, and metrics', async () => {
+    const overview = await inject('GET', '/v1/overview', undefined, accessToken);
+    expect(overview.json().counts).toMatchObject({ ACCEPTED: 1, DELIVERED: 0 });
+    const filtered = await inject(
+      'GET',
+      '/v1/notifications?status=ACCEPTED',
+      undefined,
+      accessToken,
+    );
+    expect(filtered.json()).toHaveLength(1);
+    const detail = await inject(
+      'GET',
+      `/v1/notifications/${notificationId}`,
+      undefined,
+      accessToken,
+    );
+    expect(detail.json()).toMatchObject({
+      recipient: 're•••@example.test',
+      trace_id: expect.any(String),
+    });
+    expect(
+      (await inject('GET', '/v1/audit-events', undefined, accessToken)).json().length,
+    ).toBeGreaterThan(0);
+    const metrics = await inject('GET', '/metrics');
+    expect(metrics.body).toContain('zapx_notifications{status="ACCEPTED"} 1');
+  });
+
+  it('rejects API-key replay and revoked key intake', async () => {
+    await database.pool.query(
+      `UPDATE notifications SET status = 'DEAD_LETTER', terminal_at = now() WHERE id = $1`,
+      [notificationId],
+    );
+    const machineReplay = await inject(
+      'POST',
+      `/v1/notifications/${notificationId}/replay`,
+      {},
+      apiKey,
+    );
+    expect(machineReplay.statusCode).toBe(403);
+    expect(
+      (await inject('POST', `/v1/api-keys/${apiKeyId}/revoke`, {}, accessToken)).statusCode,
+    ).toBe(201);
+    const rejected = await inject(
+      'POST',
+      '/v1/notifications',
+      {
+        provider_connection_id: providerId,
+        recipient: 'recipient@example.test',
+        template_version_id: templateVersionId,
+        variables: { first_name: 'Naya', reference: 'ORDER-1043' },
+      },
+      apiKey,
+      'request-1043',
+    );
+    expect(rejected.statusCode).toBe(401);
   });
 });
 
@@ -187,6 +352,15 @@ async function seedProductReferences(): Promise<void> {
   await database.pool.query(
     "INSERT INTO memberships(workspace_id, user_id, role) VALUES ($1, $2, 'OWNER')",
     [workspaceId, userId],
+  );
+  await database.pool.query(
+    `INSERT INTO users(id, email, display_name, password_hash, status)
+     VALUES ($1, 'viewer@zapx.local', 'Local Viewer', $2, 'ACTIVE')`,
+    [viewerId, await hashSecret('local-zapx-viewer')],
+  );
+  await database.pool.query(
+    "INSERT INTO memberships(workspace_id, user_id, role) VALUES ($1, $2, 'VIEWER')",
+    [workspaceId, viewerId],
   );
   await database.pool.query(
     `INSERT INTO provider_connections(id, workspace_id, name, kind, status)

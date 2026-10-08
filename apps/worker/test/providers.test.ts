@@ -27,7 +27,11 @@ describe('webhook provider', () => {
     );
     const provider = new WebhookProvider(new Set(['receiver.test']));
     const result = await provider.deliver(
-      { signing_secret: secret, url: 'https://receiver.test/delivery' },
+      {
+        rate_limit_per_second: 5,
+        signing_secret: secret,
+        url: 'https://receiver.test/delivery',
+      },
       {
         body: 'hello',
         deliveryId: 'delivery-1',

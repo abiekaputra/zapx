@@ -40,14 +40,24 @@ try {
        VALUES ($1, $2, 'OWNER') ON CONFLICT DO NOTHING`,
       [workspace.rows[0]!.id, user.rows[0]!.id],
     );
+    await seedMember(
+      client,
+      workspace.rows[0]!.id,
+      'operator@zapx.local',
+      'Local Operator',
+      'OPERATOR',
+    );
+    await seedMember(client, workspace.rows[0]!.id, 'viewer@zapx.local', 'Local Viewer', 'VIEWER');
     await seedProvider(client, workspace.rows[0]!.id, 'Local Mailpit', 'SMTP', {
       from: 'notifications@zapx.local',
       host: process.env.SMTP_HOST ?? '127.0.0.1',
       port: Number(process.env.SMTP_PORT ?? 1026),
+      rate_limit_per_second: 5,
       secure: false,
     });
     await seedProvider(client, workspace.rows[0]!.id, 'Local Webhook', 'WEBHOOK', {
       signing_secret: process.env.WEBHOOK_SIGNING_SECRET ?? 'local-webhook-secret',
+      rate_limit_per_second: 5,
       url: process.env.WEBHOOK_RECEIVER_URL ?? 'http://127.0.0.1:4010/deliveries',
     });
     await client.query(
@@ -74,6 +84,27 @@ try {
   process.stdout.write('Synthetic local workspace is ready.\n');
 } finally {
   await database.close();
+}
+
+async function seedMember(
+  client: PoolClient,
+  workspaceId: string,
+  email: string,
+  displayName: string,
+  role: 'OPERATOR' | 'VIEWER',
+): Promise<void> {
+  await client.query(
+    `INSERT INTO users(id, email, display_name, password_hash, status)
+     VALUES ($1, $2, $3, $4, 'ACTIVE')
+     ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
+    [uuidv7(), email, displayName, passwordHash],
+  );
+  const user = await client.query<{ id: string }>('SELECT id FROM users WHERE email = $1', [email]);
+  await client.query(
+    `INSERT INTO memberships(workspace_id, user_id, role)
+     VALUES ($1, $2, $3) ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = EXCLUDED.role`,
+    [workspaceId, user.rows[0]!.id, role],
+  );
 }
 
 async function seedProvider(

@@ -1,55 +1,77 @@
-const capabilities = [
-  'Transactional outbox relay to BullMQ',
-  'Local SMTP delivery and signed webhooks',
-  'Bounded retries with classified failures',
-  'Durable attempt history and dead letters',
-  'Audited manual recovery without erasing history',
-];
+import { useEffect, useState } from 'react';
+
+import { Shell } from './components/shell.js';
+import { LogoMark } from './components/logo-mark.js';
+import { Notice } from './components/ui.js';
+import { api, jsonBody } from './lib/api.js';
+import type { Overview, Page, User } from './lib/types.js';
+import { ApiKeysPage } from './pages/api-keys-page.js';
+import { AuditPage } from './pages/audit-page.js';
+import { ComposePage } from './pages/compose-page.js';
+import { LoginPage } from './pages/login-page.js';
+import { NotificationsPage } from './pages/notifications-page.js';
+import { OverviewPage } from './pages/overview-page.js';
+import { ProvidersPage } from './pages/providers-page.js';
+import { TemplatesPage } from './pages/templates-page.js';
 
 export function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [page, setPage] = useState<Page>('overview');
+  const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [live, setLive] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const [error, setError] = useState('');
+
+  async function logout() {
+    await api('/v1/auth/logout', jsonBody({})).catch(() => undefined);
+    setUser(null);
+    setOverview(null);
+    setLive(false);
+  }
+  useEffect(() => {
+    void api<User>('/v1/auth/me')
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => {
+    if (!user) return;
+    void api<Overview>('/v1/overview')
+      .then((data) => {
+        setOverview(data);
+        setError('');
+      })
+      .catch((reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : 'Overview unavailable.'),
+      );
+    const events = new EventSource('/v1/events', { withCredentials: true });
+    events.onopen = () => setLive(true);
+    events.onerror = () => setLive(false);
+    events.addEventListener('status', (event) => {
+      setOverview(JSON.parse((event as MessageEvent).data) as Overview);
+      setRefresh((value) => value + 1);
+    });
+    return () => events.close();
+  }, [user]);
+  if (loading)
+    return (
+      <main className="loading-screen">
+        <LogoMark />
+        <p>Preparing workspace…</p>
+      </main>
+    );
+  if (!user) return <LoginPage onLogin={setUser} />;
   return (
-    <main>
-      <nav aria-label="Primary navigation">
-        <a className="brand" href="#top" aria-label="ZapX home">
-          <span className="brand-mark">Z</span>
-          ZapX
-        </a>
-        <a href="https://github.com/abiekaputra/zapx">Repository</a>
-      </nav>
-
-      <section className="hero" id="top">
-        <p className="eyebrow">Phase 5 · Durable delivery</p>
-        <h1>Notification delivery you can inspect and recover.</h1>
-        <p className="lede">
-          ZapX is being built as a local-first delivery platform for SMTP email and signed webhooks,
-          with durable execution and visible failure recovery.
-        </p>
-        <div className="status" role="status">
-          <span aria-hidden="true" /> Delivery pipeline operational
-        </div>
-      </section>
-
-      <section className="foundation" aria-labelledby="capabilities-heading">
-        <div>
-          <p className="eyebrow">Available now</p>
-          <h2 id="capabilities-heading">From accepted request to recorded outcome</h2>
-          <p>
-            ZapX now relays accepted work through Redis, delivers local email or signed webhooks,
-            records every attempt, and preserves failures for deliberate recovery. Operator console
-            workflows begin in Phase 6.
-          </p>
-        </div>
-        <ul>
-          {capabilities.map((capability) => (
-            <li key={capability}>{capability}</li>
-          ))}
-        </ul>
-      </section>
-
-      <footer>
-        <p>Built transparently, one verified phase at a time.</p>
-        <span>Local development · No public deployment yet</span>
-      </footer>
-    </main>
+    <Shell live={live} onLogout={() => void logout()} onNavigate={setPage} page={page} user={user}>
+      {error && <Notice tone="danger">{error}</Notice>}
+      {page === 'overview' && <OverviewPage data={overview} onNavigate={setPage} />}
+      {page === 'compose' && <ComposePage user={user} />}
+      {page === 'notifications' && <NotificationsPage refresh={refresh} user={user} />}
+      {page === 'providers' && <ProvidersPage user={user} />}
+      {page === 'templates' && <TemplatesPage user={user} />}
+      {page === 'api-keys' && <ApiKeysPage user={user} />}
+      {page === 'audit' && <AuditPage />}
+    </Shell>
   );
 }

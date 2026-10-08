@@ -1,51 +1,25 @@
 # ZapX
 
-ZapX is a local-first notification delivery platform for developers and product teams. It is designed to accept SMTP email and signed webhook requests, execute them durably, and make queueing, retries, failures, and operator recovery visible.
+ZapX is a local-first notification delivery product for teams that need to understand what happened after a message was accepted. It combines a web operations console, versioned templates, SMTP and signed-webhook delivery, durable queues, bounded retries, dead-letter recovery, and auditable access control.
 
-> **Current status — Phase 5 complete:** ZapX accepts encrypted notifications, relays its transactional outbox through BullMQ, delivers local SMTP email or signed webhooks, records attempts, applies bounded retries, and supports audited dead-letter replay. Operator console workflows begin in Phase 6. ZapX is not yet an end-user-ready product and has no public deployment.
+**Release status:** complete for the documented local portfolio release. ZapX has no public deployment and uses synthetic local data and delivery targets.
 
-## Why ZapX exists
+![ZapX operations overview](docs/images/overview.jpg)
 
-Sending a request to a provider is straightforward. Operating notification delivery when providers slow down, duplicate requests arrive, or retries fail is harder. ZapX focuses on that operational gap:
+## The problem
 
-- deterministic request acceptance and idempotency;
-- durable work with explicit delivery state transitions;
-- controlled retries and dead-letter recovery;
-- signed outgoing webhooks and local SMTP delivery;
-- a console that explains what happened instead of hiding it in logs.
+Calling an email or webhook provider is easy. Operating delivery during duplicate requests, provider failures, worker restarts, and retries is harder. ZapX gives each user a clear workflow:
 
-The initial product boundary deliberately supports SMTP email and signed HTTP webhooks. Campaigns, scheduling, external provider accounts, and organization invitations remain outside the first release.
+- **Owners** configure providers, publish templates, manage API keys, and review audit evidence.
+- **Operators** compose notifications, investigate attempts, and replay dead letters.
+- **Viewers** inspect delivery state without mutation access.
+- **API clients** submit idempotent notifications through narrowly scoped keys.
 
-## Implemented product foundation
-
-- pnpm monorepo with isolated web, API, worker, and shared package boundaries;
-- NestJS and Fastify API and worker runtimes with health endpoints;
-- React and Vite web status surface with honest phase disclosure;
-- rotating browser sessions in secure cookies with CSRF protection;
-- workspace-scoped roles and revocable, one-time API key secrets;
-- PostgreSQL migrations and synthetic local seed data;
-- validated template rendering and idempotent notification intake;
-- AES-256-GCM encryption for recipients and rendered content at rest;
-- atomic notification, idempotency record, and outbox persistence;
-- deterministic BullMQ publication with PostgreSQL-backed delivery state;
-- SMTP delivery to a local inbox and HMAC-signed webhook delivery;
-- SSRF-aware webhook destination checks and redirect refusal;
-- classified provider outcomes, bounded jittered retries, and durable attempt history;
-- dead-letter state with audited manual replay that retains earlier attempts;
-- a local webhook receiver with signature, age, and duplicate validation;
-- safe RFC 9457-style problem responses and local OpenAPI documentation;
-- Zod runtime validation for environment and shared response contracts;
-- structured Pino logging with sensitive field redaction;
-- PostgreSQL, Redis, and Mailpit local infrastructure definitions;
-- strict TypeScript, ESLint, Prettier, and automated file-size enforcement;
-- unit, contract, component, and runtime integration tests;
-- CI, secret scanning, Dependabot, issue forms, pull request guidance, and security policy.
-
-## Architecture baseline
+## Product flow
 
 ```mermaid
 flowchart LR
-    User[Developer or operator] --> Web[React web console]
+    User[Owner or operator] --> Web[React console]
     Client[API client] --> API[NestJS API]
     Web --> API
     API --> DB[(PostgreSQL)]
@@ -53,72 +27,86 @@ flowchart LR
     Outbox --> Queue[(Redis and BullMQ)]
     Queue --> Worker[NestJS worker]
     Worker --> SMTP[SMTP adapter]
-    Worker --> Webhook[Signed webhook adapter]
-    SMTP --> Mailpit[Mailpit local inbox]
+    Worker --> Hook[Signed webhook adapter]
+    SMTP --> Mailpit[Mailpit inbox]
+    Hook --> Receiver[Local receiver]
     Worker --> DB
+    DB --> SSE[Live SSE status]
+    SSE --> Web
 ```
 
-The complete backend path in this diagram is implemented through SMTP and webhook outcomes. PostgreSQL remains authoritative while Redis coordinates delivery execution. The React surface still reports product status; interactive operator workflows remain Phase 6 work.
+PostgreSQL is authoritative for notification, attempt, idempotency, outbox, identity, and audit state. Redis coordinates execution; it does not replace durable business state.
 
-Detailed documents:
+## End-user capabilities
 
-- [Product brief and PRD](docs/product/product-brief.md)
-- [User flows](docs/product/user-flows.md)
-- [Acceptance criteria](docs/product/acceptance-criteria.md)
-- [Definition of done](docs/product/definition-of-done.md)
-- [Technical specification](docs/architecture/technical-specification.md)
-- [System architecture](docs/architecture/system-architecture.md)
-- [Data model](docs/architecture/data-model.md)
-- [API contract](docs/architecture/api-contract.md)
-- [State and reliability model](docs/architecture/state-and-reliability.md)
-- [Security model](docs/architecture/security-model.md)
-- [Engineering decisions](docs/architecture/engineering-decisions.md)
-- [Phase 3 implementation record](docs/architecture/phase-3-foundation.md)
-- [Phase 4 implementation record](docs/architecture/phase-4-intake.md)
-- [Phase 5 implementation record](docs/architecture/phase-5-delivery.md)
+- secure browser login with rotating access and refresh sessions;
+- Owner, Operator, and Viewer authorization boundaries;
+- one-time API key secrets with scopes and revocation;
+- encrypted SMTP and webhook provider configuration with masked readback;
+- bounded provider connection tests;
+- immutable published template versions with validated previews;
+- idempotent notification intake and atomic outbox persistence;
+- live delivery counts and notification investigation through the console;
+- status, channel, provider, and date filters;
+- SMTP delivery to Mailpit and HMAC-signed webhook delivery;
+- per-provider rate limiting, classified retries, dead letters, and audited replay;
+- ordered attempt timelines with masked recipients and sanitized errors;
+- retention cleanup for encrypted terminal payloads;
+- health, dependency-aware readiness, Prometheus metrics, trace identities, and redacted structured logs.
 
-## Technology choices
+## Product evidence
 
-| Area           | Choice              | Reason                                                                      |
-| -------------- | ------------------- | --------------------------------------------------------------------------- |
-| Language       | TypeScript          | One strict type system across browser and server boundaries.                |
-| API and worker | NestJS with Fastify | Explicit modules and dependency boundaries with a lean HTTP runtime.        |
-| Web            | React with Vite     | Focused component model and fast local feedback.                            |
-| Primary data   | PostgreSQL          | Transactions and constraints support delivery state and outbox consistency. |
-| Queue          | Redis with BullMQ   | Delayed retries and worker primitives for the planned delivery pipeline.    |
-| Local email    | Mailpit             | Inspectable SMTP behavior without sending real email.                       |
-| Contracts      | Zod                 | Runtime validation can share types across trusted and untrusted boundaries. |
-| Logs           | Pino                | Structured logs with low overhead and explicit redaction.                   |
+| Compose and validate                                                | Investigate a delivery                                                          |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| ![Validated notification preview](docs/images/composer-preview.jpg) | ![Delivered notification attempt timeline](docs/images/notification-detail.jpg) |
 
-## Workspace
+The browser test proves the complete path from login and preview through queue processing, SMTP delivery, terminal status, attempt history, audit visibility, and the Mailpit inbox. The full JPG evidence set and a description for every screen are stored in `DevLab/Porto/ZapX/`.
+
+## Engineering decisions
+
+| Concern            | Choice                                                   | Reason                                                                                                |
+| ------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Language           | Strict TypeScript                                        | One checked language across browser, API, worker, and shared contracts.                               |
+| API and worker     | NestJS with Fastify                                      | Explicit modules and dependency boundaries with a lean HTTP runtime.                                  |
+| Web                | React with Vite                                          | Focused SPA console with fast local feedback.                                                         |
+| Durable state      | PostgreSQL with explicit SQL repositories                | Transactions, constraints, row locks, and visible query behavior.                                     |
+| Async delivery     | Redis and BullMQ                                         | Deterministic jobs, delayed retry, and worker coordination.                                           |
+| Runtime validation | Zod                                                      | Validation at environment, command, and response boundaries.                                          |
+| Local delivery     | Mailpit and a signed webhook receiver                    | End-to-end evidence without a paid provider or real recipient.                                        |
+| Security           | Argon2id, SHA-256 token hashes, AES-256-GCM, HMAC-SHA256 | Separate storage controls for passwords, bearer tokens, encrypted payloads, and webhook authenticity. |
+| Observability      | Pino, trace IDs, SSE, Prometheus text metrics            | Inspectable local behavior without claiming an external telemetry deployment.                         |
+
+Production TypeScript files are capped at 300 lines and test files at 1,000 lines by an automated quality gate. Modules are split by responsibility rather than line count alone.
+
+## Repository map
 
 ```text
 apps/
-├── api/             # HTTP application boundary
-├── web/             # Operator console
-├── webhook-receiver/ # Local signed-webhook destination
-└── worker/          # Outbox relay and delivery execution
+├── api/                 # HTTP, auth, providers, templates, operations
+├── web/                 # Responsive operator console
+├── webhook-receiver/    # Signature-validating local target
+└── worker/              # Outbox relay, queue consumer, retention
 packages/
-├── config/          # Validated environment loading
-├── contracts/       # Shared runtime contracts
-├── database/        # PostgreSQL migrations and repositories
-├── domain/          # Identity and notification rules
-├── observability/   # Structured logger construction
-└── security/        # Secret hashing, token hashing, and payload encryption
+├── config/              # Environment schemas
+├── contracts/           # Shared runtime contracts
+├── database/            # Migrations and repositories
+├── domain/              # Domain commands and invariants
+├── observability/       # Redacted structured logger
+└── security/            # Hashing, encryption, signatures
 docs/
-├── architecture/    # Technical design and decisions
-└── product/         # Problem, scope, flows, and acceptance criteria
+├── architecture/        # System, state, security, API, decisions
+└── product/             # Brief, flows, criteria, definition of done
+tests/browser/           # Real-browser product validation
 ```
 
-Production TypeScript files are limited to 300 lines and test files to 1,000 lines. The limit is automated, while module boundaries still follow responsibility rather than line count alone.
-
-## Local setup
+## Run locally
 
 ### Requirements
 
 - Node.js `24.15.0`
 - pnpm `11.1.2`
-- Docker with Docker Compose for PostgreSQL, Redis, and Mailpit
+- Docker with Docker Compose
+- Google Chrome for browser validation
 
 ```bash
 corepack enable
@@ -129,7 +117,7 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-Start each runtime in a separate terminal:
+Start each runtime in its own terminal:
 
 ```bash
 pnpm dev:api
@@ -138,52 +126,64 @@ pnpm dev:web
 pnpm dev:receiver
 ```
 
-| Service       | Local address                  |
-| ------------- | ------------------------------ |
-| Web status    | `http://localhost:3000`        |
-| API health    | `http://localhost:4000/health` |
-| API readiness | `http://localhost:4000/ready`  |
-| API docs      | `http://localhost:4000/docs`   |
-| Worker health | `http://localhost:4001/health` |
-| Worker ready  | `http://localhost:4001/ready`  |
-| Webhook local | `http://localhost:4010/health` |
-| Mailpit inbox | `http://localhost:8026`        |
-| PostgreSQL    | `localhost:5434`               |
-| Redis         | `localhost:6381`               |
+| Surface            | Address                                                |
+| ------------------ | ------------------------------------------------------ |
+| Web console        | `http://localhost:3000`                                |
+| API / OpenAPI      | `http://localhost:4000` / `http://localhost:4000/docs` |
+| Worker health      | `http://localhost:4001/health`                         |
+| Webhook receiver   | `http://localhost:4010/health`                         |
+| Mailpit            | `http://localhost:8026`                                |
+| Prometheus metrics | `http://localhost:4000/metrics`                        |
 
-The synthetic seed creates `owner@zapx.local` with password `local-zapx-owner`, ready local SMTP and webhook connections, and one published template for local evaluation. Set `ZAPX_SEED_PASSWORD` before seeding to choose a different local password.
+Synthetic sign-in accounts:
 
-API readiness checks PostgreSQL. Worker readiness checks both PostgreSQL and Redis.
+| Role     | Email                 | Default local password |
+| -------- | --------------------- | ---------------------- |
+| Owner    | `owner@zapx.local`    | `local-zapx-owner`     |
+| Operator | `operator@zapx.local` | `local-zapx-owner`     |
+| Viewer   | `viewer@zapx.local`   | `local-zapx-owner`     |
 
-Stop local infrastructure with `pnpm infra:down`.
+Set `ZAPX_SEED_PASSWORD` before seeding to replace the default local-only password. Never reuse these credentials outside the synthetic environment.
 
 ## Verification
 
 ```bash
 pnpm quality
 pnpm test:integration
+pnpm test:e2e
 pnpm infra:validate
 ```
 
-`pnpm quality` enforces file limits, formatting, linting, type safety, tests, and production builds. Integration tests verify migrations, identity, encrypted intake, outbox publication, Redis queue execution, real SMTP transport, delivery state, retry exhaustion, dead-letter replay, CSRF enforcement, and audit evidence.
+The suite includes domain and security unit tests, React component tests, PostgreSQL repository tests, API authorization and failure tests, real Redis/BullMQ and SMTP integration, webhook contract tests, a 1,000-notification synthetic terminal-state validation, and the browser flow shown above. GitHub Actions repeats the gates on `main`; a separate workflow scans repository history for secrets.
 
-GitHub Actions repeats the complete quality gate and validates the Compose model on each push and pull request. A separate workflow scans repository history for committed secrets.
+## Security and reliability
 
-## Security and contribution
+- Recipients, rendered payloads, and provider configuration use AES-256-GCM at rest.
+- Passwords and API key secrets are never stored as plaintext.
+- Session cookies use HttpOnly protection; mutations require a CSRF token.
+- Intake and authentication endpoints are rate limited.
+- Webhook delivery rejects redirects, applies a destination allowlist, and signs timestamped bodies.
+- Notification creation and its outbox event commit in one transaction.
+- Retries are bounded and jittered; replay appends audit and attempt history.
+- Raw credentials are excluded from API responses, logs, fixtures, screenshots, and committed configuration.
 
-Read [SECURITY.md](SECURITY.md) before reporting a vulnerability and [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. Never use real recipients, production credentials, employer data, or private endpoints in fixtures or issues.
+See [the security model](docs/architecture/security-model.md), [state and reliability model](docs/architecture/state-and-reliability.md), and [engineering decisions](docs/architecture/engineering-decisions.md) for the detailed boundaries.
 
-## Roadmap
+## Documentation
 
-1. **Complete:** product definition and acceptance criteria.
-2. **Complete:** architecture, contracts, reliability, and security design.
-3. **Complete:** repository, runtimes, shared packages, local infrastructure, and quality automation.
-4. **Complete:** identity, workspace access, API keys, notification intake, persistence, and transactional outbox.
-5. **Complete:** outbox relay, queue execution, SMTP and signed webhook adapters, retries, dead letters, and manual recovery.
-6. **Next:** operator console, provider and template management, notification detail, and live delivery visibility.
-7. End-to-end validation and portfolio evidence.
+- [Product brief](docs/product/product-brief.md)
+- [User flows](docs/product/user-flows.md)
+- [Acceptance criteria and evidence](docs/product/acceptance-criteria.md)
+- [Definition of done](docs/product/definition-of-done.md)
+- [System architecture](docs/architecture/system-architecture.md)
+- [Data model](docs/architecture/data-model.md)
+- [API contract](docs/architecture/api-contract.md)
+- [Phase 6 console record](docs/architecture/phase-6-console.md)
+- [Phase 7 validation record](docs/architecture/phase-7-validation.md)
 
-See the [definition of done](docs/product/definition-of-done.md) for the release-level standard. A roadmap entry is only marked complete when its implementation and evidence are present.
+## Release boundary
+
+ZapX is a complete local portfolio product. Public hosting, campaigns, scheduling, billing, organization invitations, SMS, push notifications, and third-party provider accounts remain outside this release. Local delivery evidence is intentional and stated explicitly throughout the repository.
 
 ## License
 

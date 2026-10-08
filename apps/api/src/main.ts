@@ -17,6 +17,21 @@ async function bootstrap(): Promise<void> {
   );
 
   await application.register(fastifyCookie);
+  application.enableCors({
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    origin: environment.NODE_ENV === 'production' ? false : ['http://localhost:3000'],
+  });
+  application
+    .getHttpAdapter()
+    .getInstance()
+    .addHook('onSend', (_request, reply, _payload, done) => {
+      reply.header('X-Content-Type-Options', 'nosniff');
+      reply.header('X-Frame-Options', 'DENY');
+      reply.header('Referrer-Policy', 'no-referrer');
+      reply.header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+      done();
+    });
   application.enableShutdownHooks();
   application.useGlobalFilters(new ProblemFilter());
   const openApi = new DocumentBuilder()

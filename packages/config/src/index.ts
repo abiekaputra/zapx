@@ -21,6 +21,7 @@ const apiEnvironmentSchema = serviceEnvironmentSchema.extend({
     .refine((value) => Buffer.from(value, 'base64').length === 32, {
       message: 'ZAPX_MASTER_KEY must encode exactly 32 bytes.',
     }),
+  WEBHOOK_ALLOWED_HOSTS: z.string().default('127.0.0.1,localhost,webhook-receiver'),
 });
 
 const workerEnvironmentSchema = apiEnvironmentSchema.extend({

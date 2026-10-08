@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DeliveryProcessor } from '../src/delivery/delivery.processor.js';
 import { RetryableDeliveryError } from '../src/delivery/retry-policy.js';
+import { ProviderRateLimiter } from '../src/delivery/provider-rate-limiter.js';
 
 const cipher = PayloadCipher.fromBase64('BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=');
 
@@ -41,7 +42,7 @@ function setup(cycleAttempt: number) {
       completions.push(completion);
     },
   } as unknown as DeliveryRepository;
-  return { completions, processor: new DeliveryProcessor(repository) };
+  return { completions, processor: new DeliveryProcessor(repository, new ProviderRateLimiter()) };
 }
 
 function claimed(cycleAttempt: number): ClaimedDelivery {

@@ -1,5 +1,6 @@
 export * from './api-key.repository.js';
 export * from './audit.repository.js';
+export * from './console.repository.js';
 export * from './delivery.repository.js';
 export * from './delivery.types.js';
 export * from './identity.repository.js';
@@ -7,3 +8,6 @@ export * from './migrator.js';
 export * from './notification.repository.js';
 export * from './outbox.repository.js';
 export * from './pool.js';
+export * from './provider.repository.js';
+export * from './retention.repository.js';
+export * from './template.repository.js';

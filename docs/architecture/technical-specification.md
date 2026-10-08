@@ -1,6 +1,6 @@
 # ZapX technical specification
 
-**Status:** Phase 2 approved baseline  
+**Status:** implemented local release
 **Scope source:** [Product brief](../product/product-brief.md)  
 **Release boundary:** Complete local product; public deployment is outside P0
 
@@ -12,25 +12,25 @@ The design favors explicit reliability and explainability over premature distrib
 
 ## Technology baseline
 
-| Area                       | Selection                             | Purpose                                                                             |
-| -------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------- |
-| Language                   | TypeScript in strict mode             | Shared types and consistent full-stack tooling                                      |
-| API and worker framework   | NestJS                                | Modules, dependency injection, validation, OpenAPI, and BullMQ integration          |
-| Web application            | React with Vite                       | Authenticated operations console without server rendering requirements              |
-| Database                   | PostgreSQL                            | Durable transactions, constraints, indexing, locking, and audit state               |
-| Persistence                | Prisma                                | Typed queries and reproducible migrations while domain types remain separate        |
-| Queue                      | BullMQ backed by Redis                | Delayed retry, worker concurrency, rate limiting, and durable queue state           |
-| Local email                | SMTP with Mailpit                     | Account-free end-to-end email delivery and inspection                               |
-| Local webhook              | Purpose-built receiver                | Signature, retry, timeout, and response simulation                                  |
-| Contracts                  | Zod and generated OpenAPI             | Runtime validation plus typed client contracts                                      |
-| Live status                | Server-Sent Events                    | One-way delivery updates with a smaller protocol surface than bidirectional sockets |
-| Logs                       | Pino                                  | Structured JSON logs with redaction                                                 |
-| Telemetry                  | OpenTelemetry                         | Trace and metric propagation across API, relay, queue, worker, and provider         |
-| Metrics and traces         | Prometheus, Grafana, and Jaeger       | Local operational evidence and debugging                                            |
-| Unit and integration tests | Vitest, Supertest, and Testcontainers | Domain, API, PostgreSQL, Redis, and provider behavior                               |
-| Browser tests              | Playwright                            | End-user validation in a real browser                                               |
-| Package management         | pnpm workspace                        | One lockfile and explicit internal packages                                         |
-| Runtime assembly           | Docker Compose                        | Reproducible multi-service local environment                                        |
+| Area                       | Selection                            | Purpose                                                                              |
+| -------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------ |
+| Language                   | TypeScript in strict mode            | Shared types and consistent full-stack tooling                                       |
+| API and worker framework   | NestJS                               | Modules, dependency injection, validation, OpenAPI, and BullMQ integration           |
+| Web application            | React with Vite                      | Authenticated operations console without server rendering requirements               |
+| Database                   | PostgreSQL                           | Durable transactions, constraints, indexing, locking, and audit state                |
+| Persistence                | Explicit `pg` repositories           | Visible SQL, transaction boundaries, locks, and reproducible migrations              |
+| Queue                      | BullMQ backed by Redis               | Delayed retry, worker concurrency, rate limiting, and durable queue state            |
+| Local email                | SMTP with Mailpit                    | Account-free end-to-end email delivery and inspection                                |
+| Local webhook              | Purpose-built receiver               | Signature, retry, timeout, and response simulation                                   |
+| Contracts                  | Zod and runtime OpenAPI              | Runtime validation and an inspectable local HTTP contract                            |
+| Live status                | Server-Sent Events                   | One-way delivery updates with a smaller protocol surface than bidirectional sockets  |
+| Logs                       | Pino                                 | Structured JSON logs with redaction                                                  |
+| Telemetry                  | Trace identities and structured logs | Correlation across API, relay, queue, worker, and provider without an external stack |
+| Metrics                    | Prometheus text endpoint             | Local counts and timing evidence through a standard scrape format                    |
+| Unit and integration tests | Vitest and real local services       | Domain, API, PostgreSQL, Redis, SMTP, and provider behavior                          |
+| Browser tests              | Playwright                           | End-user validation in a real browser                                                |
+| Package management         | pnpm workspace                       | One lockfile and explicit internal packages                                          |
+| Runtime assembly           | Docker Compose                       | Reproducible multi-service local environment                                         |
 
 Exact dependency versions are selected and locked during Phase 3.
 
@@ -75,12 +75,13 @@ Exact dependency versions are selected and locked during Phase 3.
 - Provide locally observable delivery destinations.
 - Webhook receiver validates ZapX signatures and can simulate status codes, delay, timeout, and connection failure.
 
-### Observability services
+### Observability surface
 
-- OpenTelemetry Collector receives runtime telemetry.
-- Prometheus scrapes application metrics.
-- Grafana presents operational dashboards.
-- Jaeger presents request and delivery traces.
+- Pino emits structured logs with sensitive-field redaction.
+- One trace identity follows notification intake, outbox publication, queue work, and attempts.
+- `/metrics` exposes notification states, attempt outcomes, queue wait, and provider duration in Prometheus text format.
+- The console consumes workspace status through an authenticated SSE stream.
+- An external collector, dashboard, and tracing backend remain outside the local release.
 
 ## Workspace layout
 
@@ -96,11 +97,12 @@ zapx/
 │   ├── contracts/
 │   ├── domain/
 │   ├── observability/
-│   ├── persistence/
-│   ├── provider-sdk/
-│   └── test-support/
+│   ├── database/
+│   ├── domain/
+│   ├── observability/
+│   └── security/
 ├── docs/
-├── docker/
+├── tests/browser/
 └── scripts/
 ```
 
@@ -185,10 +187,10 @@ These are engineering validation budgets rather than production service-level pr
 
 Retention periods are configurable for local validation. Cleanup is idempotent, audited at summary level, and never deletes required audit actor labels.
 
-## Phase 3 entry criteria
+## Release verification
 
 - Product P0 and non-goals remain unchanged.
-- All Phase 1 questions are resolved by this design.
-- State transitions, API semantics, data ownership, and failure behavior are explicit.
-- Security trust boundaries and secret storage are defined.
+- State transitions, API semantics, data ownership, and failure behavior are implemented and tested.
+- Security trust boundaries and secret storage are active.
 - No implementation choice requires an external paid service.
+- The end-user browser flow and local delivery evidence are recorded in [Phase 7](phase-7-validation.md).

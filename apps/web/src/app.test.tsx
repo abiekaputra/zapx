@@ -1,17 +1,23 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from './app.js';
 
-describe('product status page', () => {
-  it('states the implemented scope without claiming product completion', () => {
-    render(<App />);
+describe('operator console', () => {
+  afterEach(() => vi.restoreAllMocks());
 
-    expect(
-      screen.getByRole('heading', {
-        name: 'Notification delivery you can inspect and recover.',
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/operator console workflows begin in Phase 6/i)).toBeInTheDocument();
+  it('opens the local sign-in flow when no session exists', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ json: async () => ({}), ok: false, status: 401 }),
+    );
+    render(<App />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Sign in to your workspace' }),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByDisplayValue('owner@zapx.local')).toBeInTheDocument();
+    expect(screen.getByText(/local-only environment/i)).toBeInTheDocument();
   });
 });

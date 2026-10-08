@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@fastify/cookie": "catalog:",
+    "@fastify/static": "catalog:",
     "@nestjs/common": "catalog:",
     "@nestjs/core": "catalog:",
     "@nestjs/platform-fastify": "catalog:",

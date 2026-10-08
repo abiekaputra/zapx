@@ -12,6 +12,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { DeliveryProcessor } from '../src/delivery/delivery.processor.js';
+import { ProviderRateLimiter } from '../src/delivery/provider-rate-limiter.js';
 import { DeliveryRuntime } from '../src/runtime/delivery.runtime.js';
 
 const databaseUrl =
@@ -57,7 +58,10 @@ describe('Phase 5 delivery flow', () => {
     const notifications = new NotificationRepository(database);
     const prepared = prepareNotification();
     await notifications.submit(prepared);
-    const processor = new DeliveryProcessor(new DeliveryRepository(database));
+    const processor = new DeliveryProcessor(
+      new DeliveryRepository(database),
+      new ProviderRateLimiter(),
+    );
     const runtime = new DeliveryRuntime(new OutboxRepository(database), processor, database);
     await runtime.onModuleInit();
     try {

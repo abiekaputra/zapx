@@ -12,6 +12,7 @@ import {
 import { SmtpProvider } from '../providers/smtp.provider.js';
 import { WebhookProvider } from '../providers/webhook.provider.js';
 import { RetryableDeliveryError, retryDelay } from './retry-policy.js';
+import { ProviderRateLimiter } from './provider-rate-limiter.js';
 
 @Injectable()
 export class DeliveryProcessor {
@@ -29,6 +30,8 @@ export class DeliveryProcessor {
   public constructor(
     @Inject(DeliveryRepository)
     private readonly deliveries: DeliveryRepository,
+    @Inject(ProviderRateLimiter)
+    private readonly rateLimiter: ProviderRateLimiter,
   ) {}
 
   public async process(notificationId: string): Promise<void> {
@@ -73,9 +76,14 @@ export class DeliveryProcessor {
           `${delivery.workspaceId}:${delivery.providerConnectionId}:config`,
         ),
       ) as unknown;
-      return delivery.channel === 'EMAIL'
-        ? this.smtp.deliver(smtpConfigSchema.parse(config), message)
-        : this.webhook.deliver(webhookConfigSchema.parse(config), message);
+      if (delivery.channel === 'EMAIL') {
+        const parsed = smtpConfigSchema.parse(config);
+        await this.rateLimiter.acquire(delivery.providerConnectionId, parsed.rate_limit_per_second);
+        return this.smtp.deliver(parsed, message);
+      }
+      const parsed = webhookConfigSchema.parse(config);
+      await this.rateLimiter.acquire(delivery.providerConnectionId, parsed.rate_limit_per_second);
+      return this.webhook.deliver(parsed, message);
     } catch (error) {
       return {
         errorCode: 'PROVIDER_CONFIG_INVALID',

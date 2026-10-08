@@ -105,7 +105,9 @@ export class NotificationService {
   }
 
   public async replay(principal: Principal, notificationId: string) {
-    this.requireScope(principal, 'notifications:write');
+    if (principal.kind !== 'USER' || principal.role === 'VIEWER') {
+      throw new DomainError('FORBIDDEN', 'Operator permission is required', 403);
+    }
     const traceId = randomBytes(16).toString('hex');
     const replayed = await this.deliveries.replay({
       actorId: principal.actorId,

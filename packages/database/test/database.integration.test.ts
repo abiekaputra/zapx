@@ -218,6 +218,56 @@ describe('PostgreSQL repositories', () => {
       published_at: null,
     });
   });
+
+  it('allows competing relays to publish one logical queue event once', async () => {
+    const notifications = new NotificationRepository(database);
+    const prepared = prepareNotification(2_000);
+    await notifications.submit(prepared);
+    const publications: string[] = [];
+    const relays = Array.from({ length: 4 }, () => new OutboxRepository(database));
+    await Promise.all(
+      relays.map((relay) =>
+        relay.publishPending(async (event) => {
+          publications.push(event.notificationId);
+        }, 10),
+      ),
+    );
+    expect(publications.filter((id) => id === prepared.notificationId)).toHaveLength(1);
+  });
+
+  it('moves a 1,000-notification synthetic batch to a terminal state without losing records', async () => {
+    const notifications = new NotificationRepository(database);
+    const outbox = new OutboxRepository(database);
+    const deliveries = new DeliveryRepository(database);
+    const prepared = Array.from({ length: 1_000 }, (_, index) => prepareNotification(index));
+
+    const accepted = await inBatches(prepared, 25, (input) => notifications.submit(input));
+    expect(new Set(accepted.map((result) => result.response.id)).size).toBe(1_000);
+    const published = await outbox.publishPending(async () => undefined, 1_100);
+    expect(published).toBeGreaterThanOrEqual(1_000);
+
+    await inBatches(accepted, 25, async ({ response }) => {
+      const claim = await deliveries.claim(response.id);
+      await deliveries.complete({
+        attemptId: claim!.attemptId,
+        durationMs: 1,
+        errorCode: null,
+        errorSummary: null,
+        nextAttemptAt: null,
+        notificationId: response.id,
+        outcome: 'SUCCEEDED',
+        providerRequestId: `simulated-${response.id}`,
+      });
+    });
+
+    const result = await database.pool.query<{ delivered: string; distinct_ids: string }>(
+      `SELECT count(*) FILTER (WHERE status = 'DELIVERED')::text AS delivered,
+                count(DISTINCT id)::text AS distinct_ids
+         FROM notifications WHERE id = ANY($1::uuid[])`,
+      [accepted.map(({ response }) => response.id)],
+    );
+    expect(result.rows[0]).toEqual({ delivered: '1000', distinct_ids: '1000' });
+  }, 60_000);
 });
 
 function tokens(suffix: string) {
@@ -229,7 +279,7 @@ function tokens(suffix: string) {
   };
 }
 
-function prepareNotification(): PreparedNotification {
+function prepareNotification(index?: number): PreparedNotification {
   const notificationId = uuidv7();
   const cipher = new PayloadCipher(Buffer.alloc(32, 7));
   const association = `${workspaceId}:${notificationId}`;
@@ -238,17 +288,29 @@ function prepareNotification(): PreparedNotification {
     channel: 'EMAIL',
     creatorId: userId,
     creatorKind: 'USER',
-    idempotencyHash: sha256('integration-key'),
+    idempotencyHash: sha256(index === undefined ? 'integration-key' : `load-key-${index}`),
     notificationId,
     providerConnectionId: providerId,
     recipient: cipher.encrypt('recipient@example.test', `${association}:recipient`),
     recipientFingerprint: cipher.fingerprint('recipient@example.test'),
-    requestHash: 'request-hash',
+    requestHash: index === undefined ? 'request-hash' : `load-request-${index}`,
     subject: cipher.encrypt('Order ready', `${association}:subject`),
     templateVersionId,
-    traceId: 'integration-trace',
+    traceId: index === undefined ? 'integration-trace' : `load-${index}`,
     workspaceId,
   };
+}
+
+async function inBatches<T, R>(
+  values: T[],
+  size: number,
+  operation: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let start = 0; start < values.length; start += size) {
+    results.push(...(await Promise.all(values.slice(start, start + size).map(operation))));
+  }
+  return results;
 }
 
 async function seedReferences(): Promise<void> {

@@ -4,10 +4,12 @@ export const smtpConfigSchema = z.object({
   from: z.string().email(),
   host: z.string().min(1),
   port: z.number().int().positive().max(65_535),
+  rate_limit_per_second: z.number().int().positive().max(100).default(5),
   secure: z.boolean(),
 });
 
 export const webhookConfigSchema = z.object({
+  rate_limit_per_second: z.number().int().positive().max(100).default(5),
   signing_secret: z.string().min(16),
   url: z.string().url(),
 });

@@ -16,6 +16,12 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/zapx_test
       REDIS_URL: redis://127.0.0.1:6379
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: 1026
+      WEBHOOK_ALLOWED_HOSTS: 127.0.0.1,localhost
+      WEBHOOK_RECEIVER_URL: http://127.0.0.1:4010/deliveries
+      WEBHOOK_SIGNING_SECRET: local-webhook-secret
+      ZAPX_MASTER_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
 
     services:
       postgres:
@@ -42,6 +48,12 @@ jobs:
           --health-timeout 3s
           --health-retries 10
 
+      mailpit:
+        image: axllent/mailpit:v1.31.4
+        ports:
+          - 1026:1025
+          - 8026:8025
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -65,6 +77,12 @@ jobs:
 
       - name: Test PostgreSQL migrations and repositories
         run: pnpm test:integration
+
+      - name: Prepare browser validation data
+        run: pnpm db:migrate && pnpm db:seed
+
+      - name: Validate end-user browser flow
+        run: pnpm test:e2e
 
       - name: Validate local infrastructure
         run: docker compose config --quiet

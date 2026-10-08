@@ -27,11 +27,13 @@
     "lint": "eslint . --max-warnings 0",
     "quality": "pnpm check:files && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "test": "pnpm -r test",
+    "test:e2e": "playwright test",
     "test:integration": "pnpm --filter @zapx/database test:integration && pnpm --filter @zapx/api test:integration && pnpm --filter @zapx/worker test:integration",
     "typecheck": "pnpm run build:packages && pnpm --filter './apps/**' typecheck"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
+    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",
