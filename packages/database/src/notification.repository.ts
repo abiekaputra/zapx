@@ -153,8 +153,8 @@ export class NotificationRepository {
          id, workspace_id, template_version_id, provider_connection_id, channel,
          recipient_ciphertext, recipient_nonce, recipient_tag, recipient_fingerprint,
          subject_ciphertext, subject_nonce, subject_tag,
-         body_ciphertext, body_nonce, body_tag, status, accepted_at, trace_id,
-         created_by_type, created_by_id
+         body_ciphertext, body_nonce, body_tag, status, accepted_at,
+         created_by_type, created_by_id, trace_id
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9,
          $10, $11, $12, $13, $14, $15, 'ACCEPTED', $16, $17, $18, $19
