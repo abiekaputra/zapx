@@ -1,5 +1,7 @@
 # ZapX API contract
 
+This document describes the target P0 contract. The currently implemented subset is recorded in [Phase 4](phase-4-intake.md); unimplemented paths below are design commitments for later phases.
+
 ## Conventions
 
 - Base path: `/v1`.
@@ -123,7 +125,7 @@ SSE events contain identifiers and state summaries, not recipients, rendered con
 | Method | Path       | Purpose                                             |
 | ------ | ---------- | --------------------------------------------------- |
 | `GET`  | `/health`  | Liveness only                                       |
-| `GET`  | `/ready`   | PostgreSQL, Redis, migrations, and worker readiness |
+| `GET`  | `/ready`   | Required dependency readiness for the current phase |
 | `GET`  | `/metrics` | Prometheus metrics on the internal local network    |
 | `GET`  | `/docs`    | OpenAPI user interface in local mode                |
 

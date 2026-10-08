@@ -1,9 +1,9 @@
-const foundations = [
-  'Typed API and worker runtimes',
-  'Shared contracts and validated configuration',
-  'Structured logs with sensitive-field redaction',
-  'PostgreSQL, Redis, and Mailpit local infrastructure',
-  'Automated tests, linting, builds, and file-size checks',
+const capabilities = [
+  'Workspace-scoped sessions and role authorization',
+  'One-time API key secrets with revocation',
+  'Validated, idempotent notification intake',
+  'Encrypted message content in PostgreSQL',
+  'Transactional notification and outbox writes',
 ];
 
 export function App() {
@@ -18,29 +18,30 @@ export function App() {
       </nav>
 
       <section className="hero" id="top">
-        <p className="eyebrow">Phase 3 · Engineering foundation</p>
+        <p className="eyebrow">Phase 4 · Durable intake</p>
         <h1>Notification delivery you can inspect and recover.</h1>
         <p className="lede">
           ZapX is being built as a local-first delivery platform for SMTP email and signed webhooks,
           with durable execution and visible failure recovery.
         </p>
         <div className="status" role="status">
-          <span aria-hidden="true" /> Foundation operational
+          <span aria-hidden="true" /> Intake API operational
         </div>
       </section>
 
-      <section className="foundation" aria-labelledby="foundation-heading">
+      <section className="foundation" aria-labelledby="capabilities-heading">
         <div>
           <p className="eyebrow">Available now</p>
-          <h2 id="foundation-heading">A tested base for product work</h2>
+          <h2 id="capabilities-heading">Secure acceptance before delivery</h2>
           <p>
-            This phase establishes runtime boundaries and quality controls. Product workflows and
-            notification delivery begin in Phase 4.
+            The API now authenticates clients, validates requests, encrypts message data, and
+            commits each accepted notification with its outbox event. Queue delivery begins in Phase
+            5.
           </p>
         </div>
         <ul>
-          {foundations.map((foundation) => (
-            <li key={foundation}>{foundation}</li>
+          {capabilities.map((capability) => (
+            <li key={capability}>{capability}</li>
           ))}
         </ul>
       </section>

@@ -62,9 +62,12 @@ erDiagram
 
 - `id`
 - `user_id`
+- `workspace_id`
+- `access_token_hash`
 - `refresh_token_hash`
 - `token_family_id`
-- `expires_at`
+- `access_expires_at`
+- `refresh_expires_at`
 - `rotated_at`
 - `revoked_at`
 - client metadata sanitized to a bounded representation

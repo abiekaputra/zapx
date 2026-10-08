@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { App } from './app.js';
 
-describe('foundation page', () => {
+describe('product status page', () => {
   it('states the implemented scope without claiming product completion', () => {
     render(<App />);
 
@@ -12,6 +12,6 @@ describe('foundation page', () => {
         name: 'Notification delivery you can inspect and recover.',
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/product workflows.*begin in Phase 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/queue delivery begins in Phase 5/i)).toBeInTheDocument();
   });
 });

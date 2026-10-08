@@ -1,3 +1,4 @@
+import fastifyCookie from '@fastify/cookie';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -15,6 +16,7 @@ async function bootstrap(): Promise<void> {
     new FastifyAdapter({ loggerInstance: logger }),
   );
 
+  await application.register(fastifyCookie);
   application.enableShutdownHooks();
   application.useGlobalFilters(new ProblemFilter());
   const openApi = new DocumentBuilder()

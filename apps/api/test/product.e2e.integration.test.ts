@@ -1,3 +1,4 @@
+import fastifyCookie from '@fastify/cookie';
 import { Test } from '@nestjs/testing';
 import { DatabasePool, migrate } from '@zapx/database';
 import { hashSecret } from '@zapx/security';
@@ -17,6 +18,8 @@ const providerId = uuidv7();
 const templateVersionId = uuidv7();
 let application: NestFastifyApplication;
 let accessToken: string;
+let browserCookies: string;
+let csrfToken: string;
 let apiKey: string;
 
 describe('Phase 4 API flow', () => {
@@ -26,6 +29,7 @@ describe('Phase 4 API flow', () => {
     await seedProductReferences();
     const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
     application = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    await application.register(fastifyCookie);
     application.useGlobalFilters(new ProblemFilter());
     await application.init();
     await application.getHttpAdapter().getInstance().ready();
@@ -51,7 +55,9 @@ describe('Phase 4 API flow', () => {
       password: 'local-zapx-owner',
     });
     expect(login.statusCode).toBe(200);
-    accessToken = login.json().access_token as string;
+    accessToken = cookieValue(login.headers['set-cookie'], 'zapx_access');
+    csrfToken = cookieValue(login.headers['set-cookie'], 'zapx_csrf');
+    browserCookies = cookieHeader(login.headers['set-cookie']);
 
     const me = await inject('GET', '/v1/auth/me', undefined, accessToken);
     expect(me.statusCode).toBe(200);
@@ -59,12 +65,24 @@ describe('Phase 4 API flow', () => {
   });
 
   it('creates an API key whose secret is returned once', async () => {
-    const created = await inject(
-      'POST',
-      '/v1/api-keys',
-      { name: 'Integration client', scopes: ['notifications:read', 'notifications:write'] },
-      accessToken,
-    );
+    const body = {
+      name: 'Integration client',
+      scopes: ['notifications:read', 'notifications:write'],
+    };
+    const rejected = await application.inject({
+      headers: { cookie: browserCookies },
+      method: 'POST',
+      payload: body,
+      url: '/v1/api-keys',
+    });
+    expect(rejected.statusCode).toBe(403);
+
+    const created = await application.inject({
+      headers: { cookie: browserCookies, 'x-csrf-token': csrfToken },
+      method: 'POST',
+      payload: body,
+      url: '/v1/api-keys',
+    });
     expect(created.statusCode).toBe(201);
     apiKey = created.json().secret as string;
     expect(apiKey).toMatch(/^zx_key_[a-f0-9]{12}_/);
@@ -119,6 +137,18 @@ async function inject(
   return payload
     ? application.inject({ headers, method, payload, url })
     : application.inject({ headers, method, url });
+}
+
+function cookieValue(header: string | string[] | undefined, name: string): string {
+  const cookies = Array.isArray(header) ? header : [header ?? ''];
+  const encoded = cookies.find((cookie) => cookie.startsWith(`${name}=`))?.split(';')[0];
+  if (!encoded) throw new Error(`Cookie ${name} was not set.`);
+  return decodeURIComponent(encoded.slice(name.length + 1));
+}
+
+function cookieHeader(header: string | string[] | undefined): string {
+  const cookies = Array.isArray(header) ? header : [header ?? ''];
+  return cookies.map((cookie) => cookie.split(';')[0]).join('; ');
 }
 
 async function seedProductReferences(): Promise<void> {

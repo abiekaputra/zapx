@@ -4,11 +4,12 @@ import { DomainError, type Principal } from '@zapx/domain';
 import { hashSecret, randomToken, sha256, verifySecret } from '@zapx/security';
 import { randomBytes } from 'node:crypto';
 
-export interface SessionResponse {
-  access_expires_at: string;
-  access_token: string;
-  refresh_expires_at: string;
-  refresh_token: string;
+export interface IssuedSession {
+  accessExpiresAt: Date;
+  accessToken: string;
+  csrfToken: string;
+  refreshExpiresAt: Date;
+  refreshToken: string;
   user: {
     display_name: string;
     email: string;
@@ -28,7 +29,7 @@ export class AuthService {
     private readonly audit: AuditRepository,
   ) {}
 
-  public async login(email: string, password: string): Promise<SessionResponse> {
+  public async login(email: string, password: string): Promise<IssuedSession> {
     const identity = await this.identities.findLoginIdentity(email);
     const passwordHash = identity?.passwordHash ?? (await this.dummyHash);
     const valid = await verifySecret(passwordHash, password);
@@ -48,10 +49,10 @@ export class AuthService {
       traceId: randomBytes(16).toString('hex'),
       workspaceId: identity.workspaceId,
     });
-    return session.response;
+    return session.issued;
   }
 
-  public async refresh(refreshToken: string): Promise<SessionResponse> {
+  public async refresh(refreshToken: string): Promise<IssuedSession> {
     const placeholder: LoginIdentity = {
       displayName: '',
       email: '',
@@ -67,7 +68,7 @@ export class AuthService {
     }
 
     return {
-      ...candidate.response,
+      ...candidate.issued,
       user: this.userResponse(rotated.identity),
     };
   }
@@ -90,6 +91,7 @@ export class AuthService {
   private issueTokens(identity: LoginIdentity) {
     const accessToken = randomToken('zx_session_');
     const refreshToken = randomToken('zx_refresh_', 48);
+    const csrfToken = randomToken('zx_csrf_', 24);
     const accessExpiresAt = new Date(Date.now() + 15 * 60 * 1_000);
     const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000);
     return {
@@ -99,11 +101,12 @@ export class AuthService {
         refreshExpiresAt,
         refreshHash: sha256(refreshToken),
       },
-      response: {
-        access_expires_at: accessExpiresAt.toISOString(),
-        access_token: accessToken,
-        refresh_expires_at: refreshExpiresAt.toISOString(),
-        refresh_token: refreshToken,
+      issued: {
+        accessExpiresAt,
+        accessToken,
+        csrfToken,
+        refreshExpiresAt,
+        refreshToken,
         user: this.userResponse(identity),
       },
     };

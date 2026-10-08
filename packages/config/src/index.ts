@@ -42,8 +42,18 @@ export function loadServiceEnvironment(
 }
 
 export function loadApiEnvironment(source: NodeJS.ProcessEnv = process.env): ApiEnvironment {
+  assertProductionSecrets(source);
   return apiEnvironmentSchema.parse({
     ...source,
     PORT: source.ZAPX_API_PORT ?? source.PORT ?? 4000,
   });
+}
+
+function assertProductionSecrets(source: NodeJS.ProcessEnv): void {
+  if (source.NODE_ENV !== 'production') return;
+
+  const missing = ['DATABASE_URL', 'ZAPX_MASTER_KEY'].filter((name) => !source[name]);
+  if (missing.length > 0) {
+    throw new Error(`Production configuration requires: ${missing.join(', ')}.`);
+  }
 }

@@ -5,10 +5,10 @@ Each criterion must be verified through an automated test or a recorded end-user
 ## Authentication and authorization
 
 - [ ] Given a valid seeded account, when the user signs in, then a secure session is created and the overview opens.
-- [ ] Given invalid credentials, when login is attempted, then the response does not reveal whether the email exists.
+- [x] Given invalid credentials, when login is attempted, then the response does not reveal whether the email exists.
 - [ ] Given an expired access session and valid refresh session, when the client renews, then the session rotates without requiring another login.
 - [ ] Given a Viewer, when a mutation is attempted through UI or API, then the action is rejected.
-- [ ] Given an Owner, when an API key is created, then its secret is displayed once and only its hash is retained.
+- [x] Given an Owner, when an API key is created, then its secret is displayed once and only its hash is retained.
 - [ ] Given a revoked API key, when it is used, then the request is rejected and no notification is created.
 
 ## Providers and templates
@@ -21,11 +21,11 @@ Each criterion must be verified through an automated test or a recorded end-user
 
 ## Notification intake
 
-- [ ] Given an authorized user or API key and a valid request, when a notification is submitted, then ZapX returns one notification identity and an accepted status.
-- [ ] Given one idempotency key and an equivalent request, when the request is repeated, then ZapX returns the original logical notification.
-- [ ] Given one idempotency key and a different payload, when the request is repeated, then ZapX rejects the conflict.
+- [x] Given an authorized user or API key and a valid request, when a notification is submitted, then ZapX returns one notification identity and an accepted status.
+- [x] Given one idempotency key and an equivalent request, when the request is repeated, then ZapX returns the original logical notification.
+- [x] Given one idempotency key and a different payload, when the request is repeated, then ZapX rejects the conflict.
 - [ ] Given invalid recipient, channel, provider, template, or variables, when submission occurs, then no notification or outbox event is committed.
-- [ ] Given a committed notification, then its outbox event exists in the same durable transaction.
+- [x] Given a committed notification, then its outbox event exists in the same durable transaction.
 
 ## Queue and delivery
 
@@ -66,7 +66,7 @@ Each criterion must be verified through an automated test or a recorded end-user
 
 ## Operations and observability
 
-- [ ] Health reports process liveness without depending on every downstream service.
+- [x] Health reports process liveness without depending on every downstream service.
 - [ ] Readiness reports unavailable when PostgreSQL, Redis, or required worker dependencies cannot support new work.
 - [ ] One correlation or trace identity connects notification intake, outbox publication, queue processing, and provider attempt.
 - [ ] Metrics expose accepted notifications, terminal outcomes, retry count, dead-letter count, queue wait, and delivery duration.
@@ -77,5 +77,5 @@ Each criterion must be verified through an automated test or a recorded end-user
 - [ ] A fresh clone can start the documented local environment with synthetic data and no paid provider account.
 - [ ] Database migration can install a clean database and roll back according to the documented strategy.
 - [ ] Unit, integration, provider contract, API, browser end-to-end, and failure tests pass deterministically.
-- [ ] Lint, strict typecheck, source length check, tests, and builds pass in GitHub Actions.
+- [x] Lint, strict typecheck, source length check, tests, and builds pass in GitHub Actions.
 - [ ] README, diagrams, API documentation, screenshots, and known limitations match the implemented product.

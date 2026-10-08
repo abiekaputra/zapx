@@ -2,7 +2,7 @@
 
 ZapX is a local-first notification delivery platform for developers and product teams. It is designed to accept SMTP email and signed webhook requests, execute them durably, and make queueing, retries, failures, and operator recovery visible.
 
-> **Current status — Phase 3 complete:** the engineering foundation is implemented and tested. Notification creation, delivery, and recovery workflows begin in Phase 4. ZapX is not yet an end-user-ready product and has no public deployment.
+> **Current status — Phase 4 complete:** secure identity, workspace isolation, API keys, validated notification intake, encrypted persistence, and a transactional outbox are implemented and tested. Queue delivery begins in Phase 5. ZapX is not yet an end-user-ready product and has no public deployment.
 
 ## Why ZapX exists
 
@@ -16,11 +16,18 @@ Sending a request to a provider is straightforward. Operating notification deliv
 
 The initial product boundary deliberately supports SMTP email and signed HTTP webhooks. Campaigns, scheduling, external provider accounts, and organization invitations remain outside the first release.
 
-## Implemented foundation
+## Implemented product foundation
 
 - pnpm monorepo with isolated web, API, worker, and shared package boundaries;
 - NestJS and Fastify API and worker runtimes with health endpoints;
-- React and Vite web foundation with honest phase status;
+- React and Vite web status surface with honest phase disclosure;
+- rotating browser sessions in secure cookies with CSRF protection;
+- workspace-scoped roles and revocable, one-time API key secrets;
+- PostgreSQL migrations and synthetic local seed data;
+- validated template rendering and idempotent notification intake;
+- AES-256-GCM encryption for recipients and rendered content at rest;
+- atomic notification, idempotency record, and outbox persistence;
+- safe RFC 9457-style problem responses and local OpenAPI documentation;
 - Zod runtime validation for environment and shared response contracts;
 - structured Pino logging with sensitive field redaction;
 - PostgreSQL, Redis, and Mailpit local infrastructure definitions;
@@ -45,7 +52,7 @@ flowchart LR
     Worker --> DB
 ```
 
-The API, outbox relay, and worker are separate runtime responsibilities inside a modular monolith. Phase 3 establishes the API and worker process boundaries. Persistence, queue execution, and provider adapters shown in the target architecture are implemented in later phases.
+The API now implements the left side of this flow through the transactional outbox. The outbox relay, Redis queue execution, provider adapters, and delivery attempts remain Phase 5 work. The diagram shows the target product architecture; the [Phase 4 implementation record](docs/architecture/phase-4-intake.md) separates implemented behavior from planned behavior.
 
 Detailed documents:
 
@@ -61,6 +68,7 @@ Detailed documents:
 - [Security model](docs/architecture/security-model.md)
 - [Engineering decisions](docs/architecture/engineering-decisions.md)
 - [Phase 3 implementation record](docs/architecture/phase-3-foundation.md)
+- [Phase 4 implementation record](docs/architecture/phase-4-intake.md)
 
 ## Technology choices
 
@@ -85,7 +93,10 @@ apps/
 packages/
 ├── config/          # Validated environment loading
 ├── contracts/       # Shared runtime contracts
-└── observability/   # Structured logger construction
+├── database/        # PostgreSQL migrations and repositories
+├── domain/          # Identity and notification rules
+├── observability/   # Structured logger construction
+└── security/        # Secret hashing, token hashing, and payload encryption
 docs/
 ├── architecture/    # Technical design and decisions
 └── product/         # Problem, scope, flows, and acceptance criteria
@@ -106,6 +117,8 @@ corepack enable
 pnpm install --frozen-lockfile
 cp .env.example .env
 pnpm dev:infra
+pnpm db:migrate
+pnpm db:seed
 ```
 
 Start each runtime in a separate terminal:
@@ -116,17 +129,20 @@ pnpm dev:worker
 pnpm dev:web
 ```
 
-| Service        | Local address                  |
-| -------------- | ------------------------------ |
-| Web foundation | `http://localhost:3000`        |
-| API health     | `http://localhost:4000/health` |
-| API readiness  | `http://localhost:4000/ready`  |
-| Worker health  | `http://localhost:4001/health` |
-| Mailpit inbox  | `http://localhost:8026`        |
-| PostgreSQL     | `localhost:5434`               |
-| Redis          | `localhost:6381`               |
+| Service       | Local address                  |
+| ------------- | ------------------------------ |
+| Web status    | `http://localhost:3000`        |
+| API health    | `http://localhost:4000/health` |
+| API readiness | `http://localhost:4000/ready`  |
+| API docs      | `http://localhost:4000/docs`   |
+| Worker health | `http://localhost:4001/health` |
+| Mailpit inbox | `http://localhost:8026`        |
+| PostgreSQL    | `localhost:5434`               |
+| Redis         | `localhost:6381`               |
 
-The current `/ready` response verifies the API process and validated configuration only. Database and queue dependency checks will be added with those integrations.
+The synthetic seed creates `owner@zapx.local` with password `local-zapx-owner`, one ready SMTP connection, and one published template for local evaluation. Set `ZAPX_SEED_PASSWORD` before seeding to choose a different local password.
+
+The current `/ready` response checks PostgreSQL. Redis and worker readiness become required when delivery execution is implemented in Phase 5.
 
 Stop local infrastructure with `pnpm infra:down`.
 
@@ -134,10 +150,11 @@ Stop local infrastructure with `pnpm infra:down`.
 
 ```bash
 pnpm quality
+pnpm test:integration
 pnpm infra:validate
 ```
 
-`pnpm quality` enforces file limits, formatting, linting, type safety, tests, and production builds. The current suite covers environment defaults and invalid input, shared health contracts, API and worker endpoints, and the web phase disclosure.
+`pnpm quality` enforces file limits, formatting, linting, type safety, tests, and production builds. PostgreSQL integration tests verify migration, session rotation and reuse detection, API key revocation, workspace isolation, encrypted storage, CSRF enforcement, idempotency, and the notification/outbox transaction.
 
 GitHub Actions repeats the complete quality gate and validates the Compose model on each push and pull request. A separate workflow scans repository history for committed secrets.
 
@@ -150,8 +167,8 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability and [CONTRIBUTI
 1. **Complete:** product definition and acceptance criteria.
 2. **Complete:** architecture, contracts, reliability, and security design.
 3. **Complete:** repository, runtimes, shared packages, local infrastructure, and quality automation.
-4. **Next:** identity, projects, API keys, notification intake, persistence, and transactional outbox.
-5. Queue execution, SMTP and signed webhook adapters, retries, and dead letters.
+4. **Complete:** identity, workspace access, API keys, notification intake, persistence, and transactional outbox.
+5. **Next:** outbox relay, queue execution, SMTP and signed webhook adapters, retries, and dead letters.
 6. Operator console and live delivery visibility.
 7. End-to-end validation and portfolio evidence.
 
