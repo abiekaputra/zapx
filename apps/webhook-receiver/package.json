@@ -1,0 +1,17 @@
+{
+  "name": "@zapx/webhook-receiver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@zapx/security": "workspace:*",
+    "fastify": "catalog:"
+  }
+}

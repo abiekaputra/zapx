@@ -17,7 +17,7 @@ Each criterion must be verified through an automated test or a recorded end-user
 - [ ] Given invalid provider configuration, when it is saved or tested, then the UI shows a safe actionable error and the provider is not marked ready.
 - [ ] Given a template variable schema, when required variables are missing or invalid, then preview and submission identify the affected fields.
 - [ ] Given a published template version, when it is used for delivery, then later template edits do not rewrite the historical rendered message.
-- [ ] Given webhook delivery, when ZapX sends the request, then the request includes a verifiable signature and timestamp.
+- [x] Given webhook delivery, when ZapX sends the request, then the request includes a verifiable signature and timestamp.
 
 ## Notification intake
 
@@ -34,14 +34,14 @@ Each criterion must be verified through an automated test or a recorded end-user
 - [ ] Given an available local SMTP provider, when an email job is processed, then Mailpit receives the rendered message and ZapX records delivery.
 - [ ] Given an available local webhook receiver, when a webhook job is processed, then the receiver validates the signature and ZapX records delivery.
 - [ ] Given a configured provider limit, when work exceeds it, then excess jobs wait rather than bypassing the limit.
-- [ ] Given a successful provider response, then the notification reaches `DELIVERED` and cannot regress to an active state.
+- [x] Given a successful provider response, then the notification reaches `DELIVERED` and cannot regress to an active state.
 
 ## Retry and recovery
 
-- [ ] Given a transient provider failure, when an attempt fails, then ZapX records the attempt and schedules the next bounded retry.
-- [ ] Given a permanent provider rejection, when an attempt fails, then ZapX does not perform automatic retries that the policy marks unsafe.
-- [ ] Given the retry limit is exhausted, then the notification reaches `DEAD_LETTER` with the complete attempt history retained.
-- [ ] Given a dead-letter notification and authorized operator, when replay is requested, then ZapX records the actor and creates a new attempt without deleting history.
+- [x] Given a transient provider failure, when an attempt fails, then ZapX records the attempt and schedules the next bounded retry.
+- [x] Given a permanent provider rejection, when an attempt fails, then ZapX does not perform automatic retries that the policy marks unsafe.
+- [x] Given the retry limit is exhausted, then the notification reaches `DEAD_LETTER` with the complete attempt history retained.
+- [x] Given a dead-letter notification and authorized operator, when replay is requested, then ZapX records the actor and creates a new attempt without deleting history.
 - [ ] Given an unauthorized Viewer, when replay is requested, then the action is rejected and no job is created.
 
 ## Web product
@@ -68,7 +68,7 @@ Each criterion must be verified through an automated test or a recorded end-user
 
 - [x] Health reports process liveness without depending on every downstream service.
 - [ ] Readiness reports unavailable when PostgreSQL, Redis, or required worker dependencies cannot support new work.
-- [ ] One correlation or trace identity connects notification intake, outbox publication, queue processing, and provider attempt.
+- [x] One correlation or trace identity connects notification intake, outbox publication, queue processing, and provider attempt.
 - [ ] Metrics expose accepted notifications, terminal outcomes, retry count, dead-letter count, queue wait, and delivery duration.
 - [ ] Graceful shutdown stops new work and safely completes or releases active work.
 

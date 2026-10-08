@@ -2,7 +2,7 @@
 
 ZapX is a local-first notification delivery platform for developers and product teams. It is designed to accept SMTP email and signed webhook requests, execute them durably, and make queueing, retries, failures, and operator recovery visible.
 
-> **Current status — Phase 4 complete:** secure identity, workspace isolation, API keys, validated notification intake, encrypted persistence, and a transactional outbox are implemented and tested. Queue delivery begins in Phase 5. ZapX is not yet an end-user-ready product and has no public deployment.
+> **Current status — Phase 5 complete:** ZapX accepts encrypted notifications, relays its transactional outbox through BullMQ, delivers local SMTP email or signed webhooks, records attempts, applies bounded retries, and supports audited dead-letter replay. Operator console workflows begin in Phase 6. ZapX is not yet an end-user-ready product and has no public deployment.
 
 ## Why ZapX exists
 
@@ -27,6 +27,12 @@ The initial product boundary deliberately supports SMTP email and signed HTTP we
 - validated template rendering and idempotent notification intake;
 - AES-256-GCM encryption for recipients and rendered content at rest;
 - atomic notification, idempotency record, and outbox persistence;
+- deterministic BullMQ publication with PostgreSQL-backed delivery state;
+- SMTP delivery to a local inbox and HMAC-signed webhook delivery;
+- SSRF-aware webhook destination checks and redirect refusal;
+- classified provider outcomes, bounded jittered retries, and durable attempt history;
+- dead-letter state with audited manual replay that retains earlier attempts;
+- a local webhook receiver with signature, age, and duplicate validation;
 - safe RFC 9457-style problem responses and local OpenAPI documentation;
 - Zod runtime validation for environment and shared response contracts;
 - structured Pino logging with sensitive field redaction;
@@ -52,7 +58,7 @@ flowchart LR
     Worker --> DB
 ```
 
-The API now implements the left side of this flow through the transactional outbox. The outbox relay, Redis queue execution, provider adapters, and delivery attempts remain Phase 5 work. The diagram shows the target product architecture; the [Phase 4 implementation record](docs/architecture/phase-4-intake.md) separates implemented behavior from planned behavior.
+The complete backend path in this diagram is implemented through SMTP and webhook outcomes. PostgreSQL remains authoritative while Redis coordinates delivery execution. The React surface still reports product status; interactive operator workflows remain Phase 6 work.
 
 Detailed documents:
 
@@ -69,6 +75,7 @@ Detailed documents:
 - [Engineering decisions](docs/architecture/engineering-decisions.md)
 - [Phase 3 implementation record](docs/architecture/phase-3-foundation.md)
 - [Phase 4 implementation record](docs/architecture/phase-4-intake.md)
+- [Phase 5 implementation record](docs/architecture/phase-5-delivery.md)
 
 ## Technology choices
 
@@ -89,7 +96,8 @@ Detailed documents:
 apps/
 ├── api/             # HTTP application boundary
 ├── web/             # Operator console
-└── worker/          # Background execution boundary
+├── webhook-receiver/ # Local signed-webhook destination
+└── worker/          # Outbox relay and delivery execution
 packages/
 ├── config/          # Validated environment loading
 ├── contracts/       # Shared runtime contracts
@@ -127,6 +135,7 @@ Start each runtime in a separate terminal:
 pnpm dev:api
 pnpm dev:worker
 pnpm dev:web
+pnpm dev:receiver
 ```
 
 | Service       | Local address                  |
@@ -136,13 +145,15 @@ pnpm dev:web
 | API readiness | `http://localhost:4000/ready`  |
 | API docs      | `http://localhost:4000/docs`   |
 | Worker health | `http://localhost:4001/health` |
+| Worker ready  | `http://localhost:4001/ready`  |
+| Webhook local | `http://localhost:4010/health` |
 | Mailpit inbox | `http://localhost:8026`        |
 | PostgreSQL    | `localhost:5434`               |
 | Redis         | `localhost:6381`               |
 
-The synthetic seed creates `owner@zapx.local` with password `local-zapx-owner`, one ready SMTP connection, and one published template for local evaluation. Set `ZAPX_SEED_PASSWORD` before seeding to choose a different local password.
+The synthetic seed creates `owner@zapx.local` with password `local-zapx-owner`, ready local SMTP and webhook connections, and one published template for local evaluation. Set `ZAPX_SEED_PASSWORD` before seeding to choose a different local password.
 
-The current `/ready` response checks PostgreSQL. Redis and worker readiness become required when delivery execution is implemented in Phase 5.
+API readiness checks PostgreSQL. Worker readiness checks both PostgreSQL and Redis.
 
 Stop local infrastructure with `pnpm infra:down`.
 
@@ -154,7 +165,7 @@ pnpm test:integration
 pnpm infra:validate
 ```
 
-`pnpm quality` enforces file limits, formatting, linting, type safety, tests, and production builds. PostgreSQL integration tests verify migration, session rotation and reuse detection, API key revocation, workspace isolation, encrypted storage, CSRF enforcement, idempotency, and the notification/outbox transaction.
+`pnpm quality` enforces file limits, formatting, linting, type safety, tests, and production builds. Integration tests verify migrations, identity, encrypted intake, outbox publication, Redis queue execution, real SMTP transport, delivery state, retry exhaustion, dead-letter replay, CSRF enforcement, and audit evidence.
 
 GitHub Actions repeats the complete quality gate and validates the Compose model on each push and pull request. A separate workflow scans repository history for committed secrets.
 
@@ -168,8 +179,8 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability and [CONTRIBUTI
 2. **Complete:** architecture, contracts, reliability, and security design.
 3. **Complete:** repository, runtimes, shared packages, local infrastructure, and quality automation.
 4. **Complete:** identity, workspace access, API keys, notification intake, persistence, and transactional outbox.
-5. **Next:** outbox relay, queue execution, SMTP and signed webhook adapters, retries, and dead letters.
-6. Operator console and live delivery visibility.
+5. **Complete:** outbox relay, queue execution, SMTP and signed webhook adapters, retries, dead letters, and manual recovery.
+6. **Next:** operator console, provider and template management, notification detail, and live delivery visibility.
 7. End-to-end validation and portfolio evidence.
 
 See the [definition of done](docs/product/definition-of-done.md) for the release-level standard. A roadmap entry is only marked complete when its implementation and evidence are present.

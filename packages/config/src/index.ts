@@ -23,9 +23,16 @@ const apiEnvironmentSchema = serviceEnvironmentSchema.extend({
     }),
 });
 
+const workerEnvironmentSchema = apiEnvironmentSchema.extend({
+  REDIS_URL: z.string().url().default('redis://127.0.0.1:6381'),
+  WEBHOOK_ALLOWED_HOSTS: z.string().default('127.0.0.1,localhost,webhook-receiver'),
+  WORKER_CONCURRENCY: z.coerce.number().int().positive().max(50).default(5),
+});
+
 export type BaseEnvironment = z.infer<typeof baseEnvironmentSchema>;
 export type ServiceEnvironment = z.infer<typeof serviceEnvironmentSchema>;
 export type ApiEnvironment = z.infer<typeof apiEnvironmentSchema>;
+export type WorkerEnvironment = z.infer<typeof workerEnvironmentSchema>;
 
 export function loadBaseEnvironment(source: NodeJS.ProcessEnv = process.env): BaseEnvironment {
   return baseEnvironmentSchema.parse(source);
@@ -46,6 +53,14 @@ export function loadApiEnvironment(source: NodeJS.ProcessEnv = process.env): Api
   return apiEnvironmentSchema.parse({
     ...source,
     PORT: source.ZAPX_API_PORT ?? source.PORT ?? 4000,
+  });
+}
+
+export function loadWorkerEnvironment(source: NodeJS.ProcessEnv = process.env): WorkerEnvironment {
+  assertProductionSecrets(source);
+  return workerEnvironmentSchema.parse({
+    ...source,
+    PORT: source.ZAPX_WORKER_HEALTH_PORT ?? source.PORT ?? 4001,
   });
 }
 

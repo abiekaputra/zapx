@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { loadApiEnvironment } from '@zapx/config';
 import {
+  DeliveryRepository,
   IdempotencyConflictError,
   NotificationRepository,
   type PreparedNotification,
@@ -23,6 +24,8 @@ export class NotificationService {
   public constructor(
     @Inject(NotificationRepository)
     private readonly notifications: NotificationRepository,
+    @Inject(DeliveryRepository)
+    private readonly deliveries: DeliveryRepository,
   ) {}
 
   public async submit(principal: Principal, idempotencyKey: string, input: NotificationSubmission) {
@@ -99,6 +102,27 @@ export class NotificationService {
       status: row.status,
       template_version_id: row.template_version_id,
     }));
+  }
+
+  public async replay(principal: Principal, notificationId: string) {
+    this.requireScope(principal, 'notifications:write');
+    const traceId = randomBytes(16).toString('hex');
+    const replayed = await this.deliveries.replay({
+      actorId: principal.actorId,
+      actorLabel: principal.actorLabel,
+      actorType: principal.kind,
+      notificationId,
+      traceId,
+      workspaceId: principal.workspaceId,
+    });
+    if (!replayed) {
+      throw new DomainError(
+        'INVALID_STATE',
+        'The notification is unavailable for replay in its current state',
+        409,
+      );
+    }
+    return { id: notificationId, status: 'ACCEPTED', trace_id: traceId };
   }
 
   private requireScope(principal: Principal, scope: string): void {

@@ -141,6 +141,7 @@ Published versions are immutable.
 - `payload_key_version`
 - `status`
 - `attempt_count`
+- `delivery_cycle_attempt`
 - `next_attempt_at`
 - `last_error_code`
 - `accepted_at`

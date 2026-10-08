@@ -4,6 +4,7 @@ import {
   ApiKeyRepository,
   AuditRepository,
   DatabasePool,
+  DeliveryRepository,
   IdentityRepository,
   NotificationRepository,
 } from '@zapx/database';
@@ -16,6 +17,7 @@ import {
     ApiKeyRepository,
     AuditRepository,
     NotificationRepository,
+    DeliveryRepository,
   ],
   providers: [
     {
@@ -40,6 +42,11 @@ import {
     {
       provide: NotificationRepository,
       useFactory: (database: DatabasePool) => new NotificationRepository(database),
+      inject: [DatabasePool],
+    },
+    {
+      provide: DeliveryRepository,
+      useFactory: (database: DatabasePool) => new DeliveryRepository(database),
       inject: [DatabasePool],
     },
   ],

@@ -5,6 +5,7 @@ import {
   Headers,
   HttpCode,
   Inject,
+  Param,
   Post,
   Query,
   Res,
@@ -47,5 +48,11 @@ export class NotificationController {
   public list(@CurrentPrincipal() principal: Principal, @Query('limit') rawLimit?: string) {
     const limit = z.coerce.number().int().min(1).max(100).default(25).parse(rawLimit);
     return this.notifications.list(principal, limit);
+  }
+
+  @Post(':id/replay')
+  @HttpCode(202)
+  public replay(@CurrentPrincipal() principal: Principal, @Param('id') id: string) {
+    return this.notifications.replay(principal, z.string().uuid().parse(id));
   }
 }

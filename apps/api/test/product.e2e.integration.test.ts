@@ -21,6 +21,7 @@ let accessToken: string;
 let browserCookies: string;
 let csrfToken: string;
 let apiKey: string;
+let notificationId: string;
 
 describe('Phase 4 API flow', () => {
   beforeAll(async () => {
@@ -101,6 +102,7 @@ describe('Phase 4 API flow', () => {
     };
     const first = await inject('POST', '/v1/notifications', body, apiKey, 'request-1042');
     expect(first.statusCode).toBe(202);
+    notificationId = first.json().id as string;
     const replay = await inject('POST', '/v1/notifications', body, apiKey, 'request-1042');
     expect(replay.statusCode).toBe(202);
     expect(replay.headers['idempotency-replayed']).toBe('true');
@@ -120,6 +122,26 @@ describe('Phase 4 API flow', () => {
               (SELECT count(*) FROM outbox_events)::text AS outbox`,
     );
     expect(counts.rows[0]).toEqual({ notifications: '1', outbox: '1' });
+  });
+
+  it('replays a dead letter with retained history and an audit record', async () => {
+    await database.pool.query(
+      `UPDATE notifications
+       SET status = 'DEAD_LETTER', terminal_at = now(), last_error_code = 'SIMULATED'
+       WHERE id = $1`,
+      [notificationId],
+    );
+    const replay = await inject('POST', `/v1/notifications/${notificationId}/replay`, {}, apiKey);
+    expect(replay.statusCode).toBe(202);
+    expect(replay.json()).toMatchObject({ id: notificationId, status: 'ACCEPTED' });
+    const evidence = await database.pool.query<{ audits: string; replays: string }>(
+      `SELECT
+         (SELECT count(*) FROM audit_events WHERE target_id = $1)::text AS audits,
+         (SELECT count(*) FROM outbox_events
+          WHERE aggregate_id = $1 AND event_type = 'notification.replayed')::text AS replays`,
+      [notificationId],
+    );
+    expect(evidence.rows[0]).toEqual({ audits: '1', replays: '1' });
   });
 });
 

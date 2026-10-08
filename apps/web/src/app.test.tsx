@@ -12,6 +12,6 @@ describe('product status page', () => {
         name: 'Notification delivery you can inspect and recover.',
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/queue delivery begins in Phase 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/operator console workflows begin in Phase 6/i)).toBeInTheDocument();
   });
 });

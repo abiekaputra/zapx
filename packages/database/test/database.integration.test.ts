@@ -5,10 +5,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   ApiKeyRepository,
   DatabasePool,
+  DeliveryRepository,
   IdentityRepository,
   IdempotencyConflictError,
   migrate,
   NotificationRepository,
+  OutboxRepository,
   type LoginIdentity,
   type PreparedNotification,
 } from '../src/index.js';
@@ -20,6 +22,7 @@ const workspaceId = uuidv7();
 const userId = uuidv7();
 const providerId = uuidv7();
 const templateVersionId = uuidv7();
+let submittedNotificationId: string;
 
 describe('PostgreSQL repositories', () => {
   beforeAll(async () => {
@@ -82,6 +85,7 @@ describe('PostgreSQL repositories', () => {
 
     const prepared = prepareNotification();
     const accepted = await notifications.submit(prepared);
+    submittedNotificationId = accepted.response.id;
     const replayed = await notifications.submit({ ...prepared, notificationId: uuidv7() });
     expect(accepted.replayed).toBe(false);
     expect(replayed).toEqual({ replayed: true, response: accepted.response });
@@ -99,6 +103,120 @@ describe('PostgreSQL repositories', () => {
           (SELECT count(*) FROM notifications
              WHERE recipient_ciphertext LIKE '%recipient@example.test%')::text AS plaintext`);
     expect(counts.rows[0]).toEqual({ notifications: '1', outbox: '1', plaintext: '0' });
+  });
+
+  it('publishes outbox work and records retry exhaustion without losing attempts', async () => {
+    const outbox = new OutboxRepository(database);
+    const published: string[] = [];
+    await expect(
+      outbox.publishPending(async (event) => {
+        published.push(event.notificationId);
+      }),
+    ).resolves.toBe(1);
+    expect(published).toEqual([submittedNotificationId]);
+
+    const deliveries = new DeliveryRepository(database);
+    const first = await deliveries.claim(submittedNotificationId);
+    expect(first?.attemptNumber).toBe(1);
+    await deliveries.complete({
+      attemptId: first!.attemptId,
+      durationMs: 20,
+      errorCode: 'SMTP_451',
+      errorSummary: 'Temporary failure',
+      nextAttemptAt: new Date(Date.now() + 5_000),
+      notificationId: submittedNotificationId,
+      outcome: 'TRANSIENT_FAILURE',
+      providerRequestId: null,
+    });
+
+    const second = await deliveries.claim(submittedNotificationId);
+    expect(second?.attemptNumber).toBe(2);
+    await deliveries.complete({
+      attemptId: second!.attemptId,
+      durationMs: 25,
+      errorCode: 'SMTP_550',
+      errorSummary: 'Rejected',
+      nextAttemptAt: null,
+      notificationId: submittedNotificationId,
+      outcome: 'PERMANENT_FAILURE',
+      providerRequestId: null,
+    });
+    const state = await database.pool.query<{ attempts: string; status: string }>(
+      `SELECT n.status, count(a.id)::text AS attempts
+       FROM notifications n JOIN delivery_attempts a ON a.notification_id = n.id
+       WHERE n.id = $1 GROUP BY n.status`,
+      [submittedNotificationId],
+    );
+    expect(state.rows[0]).toEqual({ attempts: '2', status: 'DEAD_LETTER' });
+
+    await expect(
+      deliveries.replay({
+        actorId: userId,
+        actorLabel: 'owner@zapx.local',
+        actorType: 'USER',
+        notificationId: submittedNotificationId,
+        traceId: 'manual-replay-trace',
+        workspaceId,
+      }),
+    ).resolves.toBe(true);
+    const replay = await database.pool.query<{ audits: string; outbox: string; status: string }>(
+      `SELECT n.status,
+              (SELECT count(*) FROM audit_events
+               WHERE target_id = n.id AND action = 'notification.replayed')::text AS audits,
+              (SELECT count(*) FROM outbox_events
+               WHERE aggregate_id = n.id AND event_type = 'notification.replayed')::text AS outbox
+       FROM notifications n WHERE n.id = $1`,
+      [submittedNotificationId],
+    );
+    expect(replay.rows[0]).toEqual({ audits: '1', outbox: '1', status: 'ACCEPTED' });
+
+    await outbox.publishPending(async () => undefined);
+    const manual = await deliveries.claim(submittedNotificationId);
+    expect(manual).toMatchObject({ attemptNumber: 3, cycleAttempt: 1 });
+    await deliveries.complete({
+      attemptId: manual!.attemptId,
+      durationMs: 10,
+      errorCode: null,
+      errorSummary: null,
+      nextAttemptAt: null,
+      notificationId: submittedNotificationId,
+      outcome: 'SUCCEEDED',
+      providerRequestId: 'manual-success',
+    });
+    await expect(deliveries.claim(submittedNotificationId)).resolves.toBeNull();
+  });
+
+  it('retains queue publication failures for a later relay attempt', async () => {
+    const eventId = uuidv7();
+    await database.pool.query(
+      `INSERT INTO outbox_events(
+         id, aggregate_type, aggregate_id, event_type, schema_version, payload, occurred_at
+       ) VALUES ($1, 'NOTIFICATION', $2, 'notification.replayed', 1, $3, now())`,
+      [
+        eventId,
+        submittedNotificationId,
+        {
+          notification_id: submittedNotificationId,
+          trace_id: 'failed-relay-trace',
+          workspace_id: workspaceId,
+        },
+      ],
+    );
+    const outbox = new OutboxRepository(database);
+    await expect(
+      outbox.publishPending(async () => {
+        throw new Error('Redis unavailable');
+      }),
+    ).resolves.toBe(0);
+    const event = await database.pool.query(
+      'SELECT publish_attempts, last_publish_error, published_at FROM outbox_events WHERE id = $1',
+      [eventId],
+    );
+    expect(event.rows[0]).toMatchObject({
+      last_publish_error: 'Redis unavailable',
+      publish_attempts: 1,
+      published_at: null,
+    });
   });
 });
 

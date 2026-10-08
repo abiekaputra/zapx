@@ -1,4 +1,6 @@
-import { hashSecret } from '@zapx/security';
+import { loadApiEnvironment } from '@zapx/config';
+import { hashSecret, PayloadCipher } from '@zapx/security';
+import type { PoolClient } from 'pg';
 import { v7 as uuidv7 } from 'uuid';
 
 import { DatabasePool } from '../pool.js';
@@ -8,6 +10,7 @@ if (!connectionString) throw new Error('DATABASE_URL is required.');
 
 const database = new DatabasePool(connectionString);
 const passwordHash = await hashSecret(process.env.ZAPX_SEED_PASSWORD ?? 'local-zapx-owner');
+const cipher = PayloadCipher.fromBase64(loadApiEnvironment().ZAPX_MASTER_KEY);
 
 try {
   await database.transaction(async (client) => {
@@ -37,12 +40,16 @@ try {
        VALUES ($1, $2, 'OWNER') ON CONFLICT DO NOTHING`,
       [workspace.rows[0]!.id, user.rows[0]!.id],
     );
-    await client.query(
-      `INSERT INTO provider_connections(id, workspace_id, name, kind, status)
-       VALUES ($1, $2, 'Local Mailpit', 'SMTP', 'READY')
-       ON CONFLICT (workspace_id, name) DO NOTHING`,
-      [uuidv7(), workspace.rows[0]!.id],
-    );
+    await seedProvider(client, workspace.rows[0]!.id, 'Local Mailpit', 'SMTP', {
+      from: 'notifications@zapx.local',
+      host: process.env.SMTP_HOST ?? '127.0.0.1',
+      port: Number(process.env.SMTP_PORT ?? 1026),
+      secure: false,
+    });
+    await seedProvider(client, workspace.rows[0]!.id, 'Local Webhook', 'WEBHOOK', {
+      signing_secret: process.env.WEBHOOK_SIGNING_SECRET ?? 'local-webhook-secret',
+      url: process.env.WEBHOOK_RECEIVER_URL ?? 'http://127.0.0.1:4010/deliveries',
+    });
     await client.query(
       `INSERT INTO templates(id, workspace_id, name, channel, status)
        VALUES ($1, $2, 'Order ready', 'EMAIL', 'ACTIVE')
@@ -67,4 +74,30 @@ try {
   process.stdout.write('Synthetic local workspace is ready.\n');
 } finally {
   await database.close();
+}
+
+async function seedProvider(
+  client: PoolClient,
+  workspaceId: string,
+  name: string,
+  kind: 'SMTP' | 'WEBHOOK',
+  config: Record<string, unknown>,
+): Promise<void> {
+  const existing = await client.query<{ id: string }>(
+    'SELECT id FROM provider_connections WHERE workspace_id = $1 AND name = $2',
+    [workspaceId, name],
+  );
+  const providerId = existing.rows[0]?.id ?? uuidv7();
+  const encrypted = cipher.encrypt(JSON.stringify(config), `${workspaceId}:${providerId}:config`);
+  await client.query(
+    `INSERT INTO provider_connections(
+       id, workspace_id, name, kind, status, config_ciphertext, config_nonce, config_tag
+     ) VALUES ($1, $2, $3, $4, 'READY', $5, $6, $7)
+     ON CONFLICT (workspace_id, name) DO UPDATE
+       SET kind = EXCLUDED.kind, status = 'READY',
+           config_ciphertext = EXCLUDED.config_ciphertext,
+           config_nonce = EXCLUDED.config_nonce, config_tag = EXCLUDED.config_tag,
+           updated_at = now()`,
+    [providerId, workspaceId, name, kind, encrypted.ciphertext, encrypted.nonce, encrypted.tag],
+  );
 }

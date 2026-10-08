@@ -1,9 +1,9 @@
 const capabilities = [
-  'Workspace-scoped sessions and role authorization',
-  'One-time API key secrets with revocation',
-  'Validated, idempotent notification intake',
-  'Encrypted message content in PostgreSQL',
-  'Transactional notification and outbox writes',
+  'Transactional outbox relay to BullMQ',
+  'Local SMTP delivery and signed webhooks',
+  'Bounded retries with classified failures',
+  'Durable attempt history and dead letters',
+  'Audited manual recovery without erasing history',
 ];
 
 export function App() {
@@ -18,25 +18,25 @@ export function App() {
       </nav>
 
       <section className="hero" id="top">
-        <p className="eyebrow">Phase 4 · Durable intake</p>
+        <p className="eyebrow">Phase 5 · Durable delivery</p>
         <h1>Notification delivery you can inspect and recover.</h1>
         <p className="lede">
           ZapX is being built as a local-first delivery platform for SMTP email and signed webhooks,
           with durable execution and visible failure recovery.
         </p>
         <div className="status" role="status">
-          <span aria-hidden="true" /> Intake API operational
+          <span aria-hidden="true" /> Delivery pipeline operational
         </div>
       </section>
 
       <section className="foundation" aria-labelledby="capabilities-heading">
         <div>
           <p className="eyebrow">Available now</p>
-          <h2 id="capabilities-heading">Secure acceptance before delivery</h2>
+          <h2 id="capabilities-heading">From accepted request to recorded outcome</h2>
           <p>
-            The API now authenticates clients, validates requests, encrypts message data, and
-            commits each accepted notification with its outbox event. Queue delivery begins in Phase
-            5.
+            ZapX now relays accepted work through Redis, delivers local email or signed webhooks,
+            records every attempt, and preserves failures for deliberate recovery. Operator console
+            workflows begin in Phase 6.
           </p>
         </div>
         <ul>
