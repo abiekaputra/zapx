@@ -116,28 +116,31 @@ async function seedReferences(): Promise<void> {
   const templateId = uuidv7();
   await database.pool.query(
     `INSERT INTO workspaces(id, slug, name, status)
-       VALUES ($1, 'phase-five', 'Phase Five', 'ACTIVE');
-     INSERT INTO users(id, email, display_name, password_hash, status)
-       VALUES ($2, 'phase5@example.test', 'Phase Five', 'unused', 'ACTIVE');
-     INSERT INTO provider_connections(
+     VALUES ($1, 'phase-five', 'Phase Five', 'ACTIVE')`,
+    [workspaceId],
+  );
+  await database.pool.query(
+    `INSERT INTO users(id, email, display_name, password_hash, status)
+     VALUES ($1, 'phase5@example.test', 'Phase Five', 'unused', 'ACTIVE')`,
+    [userId],
+  );
+  await database.pool.query(
+    `INSERT INTO provider_connections(
        id, workspace_id, name, kind, status, config_ciphertext, config_nonce, config_tag
-     ) VALUES ($3, $1, 'Test SMTP', 'SMTP', 'READY', $4, $5, $6);
-     INSERT INTO templates(id, workspace_id, name, channel, status)
-       VALUES ($7, $1, 'Test', 'EMAIL', 'ACTIVE');
-     INSERT INTO template_versions(
+     ) VALUES ($1, $2, 'Test SMTP', 'SMTP', 'READY', $3, $4, $5)`,
+    [providerId, workspaceId, config.ciphertext, config.nonce, config.tag],
+  );
+  await database.pool.query(
+    `INSERT INTO templates(id, workspace_id, name, channel, status)
+     VALUES ($1, $2, 'Test', 'EMAIL', 'ACTIVE')`,
+    [templateId, workspaceId],
+  );
+  await database.pool.query(
+    `INSERT INTO template_versions(
        id, template_id, version_number, body_template,
        required_variables, published_at, creator_user_id
-     ) VALUES ($8, $7, 1, 'Hello', '{}', now(), $2);`,
-    [
-      workspaceId,
-      userId,
-      providerId,
-      config.ciphertext,
-      config.nonce,
-      config.tag,
-      templateId,
-      templateVersionId,
-    ],
+     ) VALUES ($1, $2, 1, 'Hello', '{}', now(), $3)`,
+    [templateVersionId, templateId, userId],
   );
 }
 
