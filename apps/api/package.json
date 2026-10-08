@@ -7,19 +7,26 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@nestjs/common": "catalog:",
     "@nestjs/core": "catalog:",
     "@nestjs/platform-fastify": "catalog:",
+    "@nestjs/swagger": "catalog:",
     "@zapx/config": "workspace:*",
     "@zapx/contracts": "workspace:*",
+    "@zapx/database": "workspace:*",
+    "@zapx/domain": "workspace:*",
     "@zapx/observability": "workspace:*",
+    "@zapx/security": "workspace:*",
     "fastify": "catalog:",
     "reflect-metadata": "catalog:",
-    "rxjs": "catalog:"
+    "rxjs": "catalog:",
+    "uuid": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@nestjs/testing": "catalog:"

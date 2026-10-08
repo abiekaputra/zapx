@@ -13,6 +13,8 @@
     "build": "pnpm -r --workspace-concurrency=1 build",
     "build:packages": "pnpm --filter './packages/**' build",
     "check:files": "node scripts/check-file-lengths.mjs",
+    "db:migrate": "pnpm --filter @zapx/database migrate",
+    "db:seed": "pnpm --filter @zapx/database seed",
     "dev:api": "pnpm run build:packages && pnpm --filter @zapx/api dev",
     "dev:infra": "docker compose up -d postgres redis mailpit",
     "dev:web": "pnpm run build:packages && pnpm --filter @zapx/web dev",
@@ -24,6 +26,7 @@
     "lint": "eslint . --max-warnings 0",
     "quality": "pnpm check:files && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "test": "pnpm -r test",
+    "test:integration": "pnpm --filter @zapx/database test:integration && pnpm --filter @zapx/api test:integration",
     "typecheck": "pnpm run build:packages && pnpm --filter './apps/**' typecheck"
   },
   "devDependencies": {
