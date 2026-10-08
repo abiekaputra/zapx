@@ -8,6 +8,7 @@ import {
   type OutboxDeliveryEvent,
 } from '@zapx/database';
 import { Queue, Worker } from 'bullmq';
+import { Redis } from 'ioredis';
 
 import { DeliveryProcessor } from '../delivery/delivery.processor.js';
 import { RetryableDeliveryError } from '../delivery/retry-policy.js';
@@ -20,8 +21,10 @@ export class DeliveryRuntime implements OnModuleInit, OnModuleDestroy {
   private readonly environment = loadWorkerEnvironment();
   private readonly logger = new Logger(DeliveryRuntime.name);
   private queue?: Queue<OutboxDeliveryEvent>;
+  private queueConnection?: Redis;
   private relayTimer?: NodeJS.Timeout;
   private worker?: Worker<OutboxDeliveryEvent>;
+  private workerConnection?: Redis;
 
   public constructor(
     @Inject(OutboxRepository) private readonly outbox: OutboxRepository,
@@ -30,14 +33,16 @@ export class DeliveryRuntime implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   public async onModuleInit(): Promise<void> {
-    const connection = redisOptions(this.environment.REDIS_URL);
-    this.queue = new Queue(queueName, { connection });
+    const connectionOptions = redisOptions(this.environment.REDIS_URL);
+    this.queueConnection = new Redis(connectionOptions);
+    this.workerConnection = new Redis(connectionOptions);
+    this.queue = new Queue(queueName, { connection: this.queueConnection });
     this.worker = new Worker(
       queueName,
       async (job) => this.processor.process(job.data.notificationId),
       {
         concurrency: this.environment.WORKER_CONCURRENCY,
-        connection,
+        connection: this.workerConnection,
         settings: {
           backoffStrategy: (_attempts, _type, error) =>
             error instanceof RetryableDeliveryError

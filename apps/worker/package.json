@@ -22,6 +22,7 @@
     "@zapx/security": "workspace:*",
     "bullmq": "catalog:",
     "fastify": "catalog:",
+    "ioredis": "catalog:",
     "nodemailer": "catalog:",
     "reflect-metadata": "catalog:",
     "rxjs": "catalog:",
