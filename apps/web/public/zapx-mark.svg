@@ -1,0 +1,24 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  fill="none"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">ZapX delivery bolt monogram</title>
+  <desc id="description">A lightning-shaped Z crossed by two aligned strokes to form an X.</desc>
+
+  <rect width="512" height="512" rx="128" fill="#91FF68" />
+  <path
+    d="M313.6 102.4H409.6L314.9 209.9H371.2L185.6 409.6H102.4L202.2 297H143.4L313.6 102.4Z"
+    fill="#080A0B"
+  />
+  <path
+    d="M128 121.6L217.6 221.4M294.4 290.6L390.4 396.8"
+    stroke="#080A0B"
+    stroke-width="43.5"
+    stroke-linecap="round"
+  />
+</svg>

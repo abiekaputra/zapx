@@ -102,22 +102,19 @@ h3 {
   width: 34px;
   height: 34px;
   flex: 0 0 auto;
-  box-shadow: 0 0 24px rgb(145 255 104 / 22%);
+  filter: drop-shadow(0 0 10px rgb(145 255 104 / 20%));
 }
 .brand-mark rect {
   fill: var(--acid);
 }
-.brand-mark path {
+.monogram-bolt {
+  fill: #080a0b;
+}
+.monogram-cross {
   fill: none;
   stroke: #080a0b;
-  stroke-linecap: square;
-  stroke-linejoin: bevel;
-}
-.monogram-z {
-  stroke-width: 4.2;
-}
-.monogram-x {
-  stroke-width: 3.2;
+  stroke-width: 3.4;
+  stroke-linecap: round;
 }
 
 .app-shell {

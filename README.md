@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/brand/zapx-logo-mark.svg" width="104" alt="ZapX delivery bolt logo" />
+</p>
+
 # ZapX
 
 ZapX is a local-first notification delivery product for teams that need to understand what happened after a message was accepted. It combines a web operations console, versioned templates, SMTP and signed-webhook delivery, durable queues, bounded retries, dead-letter recovery, and auditable access control.
