@@ -84,5 +84,14 @@ jobs:
       - name: Validate end-user browser flow
         run: pnpm test:e2e
 
+      - name: Upload browser portfolio evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: error
+          name: zapx-browser-evidence
+          path: test-results/screenshots
+          retention-days: 7
+
       - name: Validate local infrastructure
         run: docker compose config --quiet

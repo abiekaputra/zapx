@@ -12,6 +12,13 @@ test('owner delivers a local email and investigates its evidence', async ({
   await mkdir(evidenceRoot, { recursive: true });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
+  const logo = page.getByRole('img', { name: 'ZapX' });
+  await expect(logo).toBeVisible();
+  await expect
+    .poll(() =>
+      logo.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
+    )
+    .toBe(true);
   await capture(page, '01-login.jpg');
 
   await page.getByLabel('Email').fill('owner@zapx.local');
