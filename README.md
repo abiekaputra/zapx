@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/zapx-logo-mark.svg" width="104" alt="ZapX delivery bolt logo" />
+  <img src="docs/brand/zapx-mark.png" width="112" alt="ZapX trace path logo" />
 </p>
 
 # ZapX

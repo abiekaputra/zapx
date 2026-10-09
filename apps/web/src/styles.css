@@ -99,22 +99,10 @@ h3 {
   font-weight: 800;
 }
 .brand-mark {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
-  filter: drop-shadow(0 0 10px rgb(145 255 104 / 20%));
-}
-.brand-mark rect {
-  fill: var(--acid);
-}
-.monogram-bolt {
-  fill: #080a0b;
-}
-.monogram-cross {
-  fill: none;
-  stroke: #080a0b;
-  stroke-width: 3.4;
-  stroke-linecap: round;
+  object-fit: contain;
 }
 
 .app-shell {
