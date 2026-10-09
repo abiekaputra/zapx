@@ -64,7 +64,7 @@ PostgreSQL is authoritative for notification, attempt, idempotency, outbox, iden
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | ![Validated notification preview](docs/images/composer-preview.jpg) | ![Delivered notification attempt timeline](docs/images/notification-detail.jpg) |
 
-The browser test proves the complete path from login and preview through queue processing, SMTP delivery, terminal status, attempt history, audit visibility, and the Mailpit inbox. The full JPG evidence set and a description for every screen are stored in `DevLab/Porto/ZapX/`.
+The browser test proves the complete path from login and preview through queue processing, SMTP delivery, terminal status, attempt history, audit visibility, and the Mailpit inbox. CI retains the complete JPG set as the `zapx-browser-evidence` workflow artifact; the curated repository images and `DevLab/Porto/ZapX/` evidence were captured from that same verified journey.
 
 ## Engineering decisions
 
