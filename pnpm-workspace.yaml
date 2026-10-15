@@ -38,7 +38,7 @@ catalog:
   nodemailer: 10.0.15
   pg: 8.23.1
   pino: 10.4.0
-  prettier: 3.9.9
+  prettier: 3.9.10
   react: 19.3.0
   react-dom: 19.3.0
   reflect-metadata: 0.2.2
