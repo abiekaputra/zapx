@@ -125,8 +125,8 @@ catalogs:
       specifier: 8.71.1
       version: 8.71.1
     uuid:
-      specifier: 14.0.2
-      version: 14.0.2
+      specifier: 14.0.3
+      version: 14.0.3
     vite:
       specifier: 8.3.3
       version: 8.3.3
@@ -227,7 +227,7 @@ importers:
         version: 7.8.2
       uuid:
         specifier: 'catalog:'
-        version: 14.0.2
+        version: 14.0.3
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -322,7 +322,7 @@ importers:
         version: 7.8.2
       uuid:
         specifier: 'catalog:'
-        version: 14.0.2
+        version: 14.0.3
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -368,7 +368,7 @@ importers:
         version: 8.23.1
       uuid:
         specifier: 'catalog:'
-        version: 14.0.2
+        version: 14.0.3
     devDependencies:
       '@types/pg':
         specifier: 'catalog:'
@@ -2342,8 +2342,8 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  uuid@14.0.2:
-    resolution: {integrity: sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ==}
+  uuid@14.0.3:
+    resolution: {integrity: sha512-Sc5u1VVln93y1Xnz4R+CunOZc7R9LUcTmhj7Rc7Eg3HVcf7rVn2FOoa812fe0W8p3jD7xeoGSYbfqCGGH2B6xw==}
     hasBin: true
 
   vite@8.3.3:
@@ -4243,7 +4243,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  uuid@14.0.2: {}
+  uuid@14.0.3: {}
 
   vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15):
     dependencies:
