@@ -50,7 +50,7 @@ catalog:
   uuid: 14.0.2
   vite: 8.3.3
   vitest: 5.0.3
-  zod: 4.6.5
+  zod: 4.6.6
 
 catalogMode: strict
 

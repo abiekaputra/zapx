@@ -134,8 +134,8 @@ catalogs:
       specifier: 5.0.3
       version: 5.0.3
     zod:
-      specifier: 4.6.5
-      version: 4.6.5
+      specifier: 4.6.6
+      version: 4.6.6
 
 importers:
 
@@ -230,7 +230,7 @@ importers:
         version: 14.0.2
       zod:
         specifier: 'catalog:'
-        version: 4.6.5
+        version: 4.6.6
     devDependencies:
       '@nestjs/testing':
         specifier: 'catalog:'
@@ -325,7 +325,7 @@ importers:
         version: 14.0.2
       zod:
         specifier: 'catalog:'
-        version: 4.6.5
+        version: 4.6.6
     devDependencies:
       '@nestjs/testing':
         specifier: 'catalog:'
@@ -344,13 +344,13 @@ importers:
     dependencies:
       zod:
         specifier: 'catalog:'
-        version: 4.6.5
+        version: 4.6.6
 
   packages/contracts:
     dependencies:
       zod:
         specifier: 'catalog:'
-        version: 4.6.5
+        version: 4.6.6
 
   packages/database:
     dependencies:
@@ -378,7 +378,7 @@ importers:
     dependencies:
       zod:
         specifier: 'catalog:'
-        version: 4.6.5
+        version: 4.6.6
 
   packages/observability:
     dependencies:
@@ -2487,6 +2487,9 @@ packages:
   zod@4.6.5:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
+  zod@4.6.6:
+    resolution: {integrity: sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA==}
+
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
@@ -4319,3 +4322,5 @@ snapshots:
       zod: 4.6.5
 
   zod@4.6.5: {}
+
+  zod@4.6.6: {}
